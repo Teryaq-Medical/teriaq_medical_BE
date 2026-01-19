@@ -1,0 +1,196 @@
+/* ========================================================================== 
+    GLOBAL COLORS & BASE
+   ========================================================================== */
+:root {
+    --bg-main: #0b0d10;
+    --bg-card: #111318;
+    --bg-input: #1a1d24;
+    --text-main: #e5e7eb;
+    --text-muted: #9ca3af;
+    --accent: #ff9f1c;      /* Original Orange */
+    --accent-blue: #00B0D0; /* New Pacific Blue */
+    --cream: #FAF9F6;       /* New Off-White */
+    --border-soft: #23262d;
+}
+
+body, .content-wrapper {
+    background-color: var(--bg-main) !important;
+    color: var(--text-main) !important;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ========================================================================== 
+    NAVBAR & SIDEBAR
+   ========================================================================== */
+.main-header.navbar, .main-sidebar {
+    background: #000 !important;
+    border-bottom: 1px solid var(--border-soft) !important;
+}
+
+.nav-sidebar .nav-link {
+    color: var(--text-muted) !important;
+    transition: all 0.2s ease;
+}
+
+.nav-sidebar .nav-link.active {
+    background: rgba(0, 176, 208, 0.15) !important; /* Subtle blue glow */
+    color: var(--accent-blue) !important;
+}
+
+.nav-sidebar .nav-link:hover {
+    background: #111 !important;
+    color: var(--accent-blue) !important;
+}
+
+/* ========================================================================== 
+    CARDS & HEADERS
+   ========================================================================== */
+.card {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-soft) !important;
+    border-radius: 14px !important;
+}
+
+.card-primary.card-outline, 
+.card-primary:not(.card-outline) > .card-header {
+    background-color: var(--accent-blue) !important;
+    border-color: var(--accent-blue) !important;
+    color: #000 !important;
+}
+
+.card-title {
+    color: var(--text-main) !important;
+}
+
+/* ========================================================================== 
+    INPUT FIELDS & FORMS
+   ========================================================================== */
+.form-control, 
+input[type="text"], 
+input[type="password"], 
+input[type="email"], 
+input[type="number"],
+textarea, 
+select {
+    background-color: var(--bg-input) !important;
+    border: 1px solid var(--border-soft) !important;
+    color: var(--cream) !important;
+    border-radius: 8px !important;
+}
+
+.form-control:focus, input:focus, select:focus, textarea:focus {
+    border-color: var(--accent-blue) !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 176, 208, 0.25) !important;
+    background-color: #1f222b !important;
+    outline: none !important;
+}
+
+/* ========================================================================== 
+    BUTTONS & ACTIONS (The Blue & Cream Mix)
+   ========================================================================== */
+/* Primary Buttons: Blue Gradients */
+.btn-primary, .btn-info, .btn-success {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #008ca5 100%) !important;
+    border: none !important;
+    color: var(--cream) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover, .btn-info:hover, .btn-success:hover {
+    background: linear-gradient(135deg, #00c4e9 0%, var(--accent-blue) 100%) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 176, 208, 0.3);
+}
+
+/* Warning Buttons: Keep Orange for functional variety */
+.btn-warning {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #ffffff !important;
+}
+
+/* Submit Row Styling */
+.submit-row {
+    background: var(--bg-card) !important;
+    padding: 15px !important;
+    border-radius: 10px !important;
+}
+
+.submit-row input[name="_save"] {
+    background: var(--accent-blue) !important;
+    color: var(--cream) !important;
+    border: none !important;
+}
+
+.submit-row input[name="_continue"] {
+    background: transparent !important;
+    color: var(--accent-blue) !important;
+    border: 1px solid var(--accent-blue) !important;
+}
+
+.submit-row input[name="_continue"]:hover {
+    background: var(--accent-blue) !important;
+    color: #ffffff !important;
+}
+
+/* ========================================================================== 
+    PERMISSIONS & SELECTOR WIDGETS
+   ========================================================================== */
+.selector-available input, 
+.selector-chosen input {
+    background-color: #ffffff !important;
+    border: 1px solid var(--accent-blue) !important;
+    color: var(--accent-blue) !important;
+}
+
+.selector-available select, 
+.selector-chosen select {
+    background-color: var(--bg-input) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-soft) !important;
+}
+
+.selector .selector-chosen h2 {
+    background: var(--accent-blue) !important;
+    color: #ffffff !important;
+}
+
+/* ========================================================================== 
+    TABLES & LINKS
+   ========================================================================== */
+.table {
+    color: var(--text-main) !important;
+}
+
+.table thead th {
+    background: #ffffff !important;
+    color: var(--text-muted) !important;
+    border-bottom: 1px solid var(--border-soft) !important;
+}
+
+a, a:hover {
+    color: var(--accent-blue) !important;
+}
+
+.breadcrumb-item a {
+    color: var(--accent-blue) !important;
+}
+
+/* ========================================================================== 
+    LOGIN PAGE
+   ========================================================================== */
+.login-page::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 35vh;
+    /* Gradient mixing the original Orange with the new Blue */
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-blue) 100%);
+    border-bottom-left-radius: 60% 20%;
+    border-bottom-right-radius: 60% 20%;
+    z-index: -1;
+}

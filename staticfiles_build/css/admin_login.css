@@ -1,0 +1,84 @@
+/* ===============================
+   LOGIN PAGE – ASER STYLE
+================================ */
+
+/* خلفية الصفحة */
+body.login-page {
+    background: #f8fafc !important;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* الكارت */
+.login-box {
+    width: 380px;
+}
+
+.login-card-body {
+    background: #ffffff !important;
+    border-radius: 18px !important;
+    padding: 40px 32px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* اللوجو */
+.login-logo img {
+    max-height: 90px;
+    margin-bottom: 10px;
+}
+
+/* العنوان */
+.login-box-msg {
+    font-size: 15px;
+    color: #6b7280;
+    margin-bottom: 25px;
+}
+
+/* Inputs */
+.login-card-body .form-control {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 12px !important;
+    height: 46px;
+    font-size: 14px;
+}
+
+.login-card-body .form-control:focus {
+    border-color: #ff9f1c !important;
+    box-shadow: 0 0 0 3px rgba(255, 159, 28, 0.2) !important;
+}
+
+/* زرار Login */
+.login-card-body .btn-primary {
+    background: #ff9f1c !important;
+    border: none !important;
+    border-radius: 14px !important;
+    height: 46px;
+    font-weight: 600;
+    color: #000 !important;
+    transition: all 0.2s ease;
+}
+
+.login-card-body .btn-primary:hover {
+    background: #ffb347 !important;
+    transform: translateY(-1px);
+}
+
+/* Checkbox */
+.icheck-primary input:checked + label::before {
+    background-color: #ff9f1c !important;
+    border-color: #ff9f1c !important;
+}
+
+/* Links */
+.login-card-body a {
+    color: #ff9f1c !important;
+    font-weight: 500;
+}
+
+/* Footer */
+.login-box-footer {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 13px;
+    color: #9ca3af;
+}
