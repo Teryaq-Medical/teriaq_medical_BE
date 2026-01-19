@@ -21,7 +21,7 @@ SECRET_KEY = 'django-insecure-l1@llene&*armz141=d29_+c6k*2-l36#!wijnjyw*0*(341+q
 
 DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["http://127.0.0.1:8000",".vercel.app", ".now.sh"]
 
 
 JAZZMIN_SETTINGS = {
