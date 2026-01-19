@@ -4,12 +4,14 @@
     {
       "src": "ASER/wsgi.py",
       "use": "@vercel/python",
-      "config": { "runtime": "python3.9" }
+      "config": {"maxLambdaSize": "15mb", "runtime": "python3.x"}
     },
     {
-      "src": "build.sh",
+      "src": "build_files.sh",
       "use": "@vercel/static-build",
-      "config": { "distDir": "staticfiles_build" }
+      "config": {
+        "distDir": "staticfiles"
+      }
     }
   ],
   "routes": [
