@@ -1,61 +1,41 @@
 from rest_framework import serializers
-from django.contrib.auth import authenticate
-from .models import User, CommunityMember, NormalUser
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('id', 'email', 'full_name', 'phone_number', 'user_type')
-
-
-
-class CommunitySignupSerializer(serializers.Serializer):
+class BaseRegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    full_name = serializers.CharField()
-    phone_number = serializers.CharField()
-    community_name = serializers.CharField()
-    membership_number = serializers.CharField()
+    password = serializers.CharField(
+        write_only=True,
+        min_length=6,
+        style={'input_type': 'password'}
+    )
+    full_name = serializers.CharField(max_length=255)
+    phone_number = serializers.CharField(max_length=20)
 
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            email=validated_data['email'],
-            password=validated_data['password'],
-            full_name=validated_data['full_name'],
-            phone_number=validated_data['phone_number'],
-            user_type='community'
-        )
+    def validate_email(self, value):
+        from accounts.models import User
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("هذا البريد الإلكتروني مستخدم بالفعل")
+        return value
 
-        CommunityMember.objects.create(
-            user=user,
-            community_name=validated_data['community_name'],
-            membership_number=validated_data['membership_number']
-        )
 
-        return user
 
-class NormalSignupSerializer(serializers.Serializer):
+class NormalUserRegisterSerializer(BaseRegisterSerializer):
+    national_id = serializers.CharField(max_length=50)
+
+    def validate_national_id(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("الرقم القومي يجب أن يحتوي على أرقام فقط")
+        return value
+
+
+class CommunityUserRegisterSerializer(BaseRegisterSerializer):
+    community_name = serializers.CharField(max_length=255)
+    membership_number = serializers.CharField(max_length=100)
+
+
+class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    full_name = serializers.CharField()
-    phone_number = serializers.CharField()
-    national_id = serializers.CharField()
-
-    def create(self, validated_data):
-        user = User.objects.create_user(
-            email=validated_data['email'],
-            password=validated_data['password'],
-            full_name=validated_data['full_name'],
-            phone_number=validated_data['phone_number'],
-            user_type='normal'
-        )
-
-        NormalUser.objects.create(
-            user=user,
-            national_id=validated_data['national_id']
-        )
-
-        return user
-
-
+    password = serializers.CharField(
+        write_only=True,
+        style={'input_type': 'password'}
+    )
