@@ -1,144 +1,156 @@
-from rest_framework.authtoken.models import Token
-from .utils import set_auth_cookie
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
-from django.contrib.auth import authenticate
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth.hashers import make_password
 from rest_framework.authtoken.models import Token
-
-from accounts.models import User, NormalUser, CommunityMember
-from .serializers import (
-    NormalUserRegisterSerializer,
-    CommunityUserRegisterSerializer,
-    LoginSerializer
-)
+from accounts.models import User, NormalUser,CommunityMember
+from django.contrib.auth import authenticate
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import permission_classes
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
-def register_normal_user(request):
-    serializer = NormalUserRegisterSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    data = serializer.validated_data
+def register_normal(request):
+    data = request.data
 
-    user = User.objects.create_user(
-        email=data['email'],
-        password=data['password'],
-        full_name=data['full_name'],
-        phone_number=data['phone_number'],
-        user_type='normal'
+    if data.get("password") != data.get("confirm_password"):
+        return Response({"detail": "Passwords do not match"}, status=400)
+
+    user = User.objects.create(
+        email=data["email"],
+        full_name=data["full_name"],
+        phone_number=data["phone_number"],
+        user_type="normal",
+        password=make_password(data["password"]),
     )
 
     NormalUser.objects.create(
         user=user,
-        national_id=data['national_id']
+        national_id=data["national_id"]
     )
 
-    token, _ = Token.objects.get_or_create(user=user)
+    token = Token.objects.create(user=user)
 
     response = Response(
-        {
-            "message": "تم تسجيل المستخدم العادي بنجاح",
-            "user_type": "normal"
-        },
+        {"message": "Registered successfully"},
         status=status.HTTP_201_CREATED
     )
 
-    set_auth_cookie(response, token.key)
+    response.set_cookie(
+        key="auth_token",
+        value=token.key,
+        httponly=True,
+        secure=False,   # True in production
+        samesite="Lax",
+    )
+
     return response
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
-def register_community_user(request):
-    serializer = CommunityUserRegisterSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    data = serializer.validated_data
+def register_community(request):
+    data = request.data
 
-    user = User.objects.create_user(
-        email=data['email'],
-        password=data['password'],
-        full_name=data['full_name'],
-        phone_number=data['phone_number'],
-        user_type='community'
+    if data.get("password") != data.get("confirm_password"):
+        return Response({"detail": "Passwords do not match"}, status=400)
+
+    user = User.objects.create(
+        email=data["email"],
+        full_name=data["full_name"],
+        phone_number=data["phone_number"],
+        user_type="community",
+        password=make_password(data["password"]),
     )
 
     CommunityMember.objects.create(
         user=user,
-        community_name=data['community_name'],
-        membership_number=data['membership_number']
+        community_name=data["community_name"],
+        membership_number=data["membership_number"]
     )
 
-    token, _ = Token.objects.get_or_create(user=user)
+    token = Token.objects.create(user=user)
 
     response = Response(
-        {
-            "message": "تم تسجيل عضو المجتمع بنجاح",
-            "user_type": "community"
-        },
+        {"message": "Registered successfully"},
         status=status.HTTP_201_CREATED
     )
 
-    set_auth_cookie(response, token.key)
+    response.set_cookie(
+        key="auth_token",
+        value=token.key,
+        httponly=True,
+        secure=False,
+        samesite="Lax",
+    )
+
     return response
 
 
-
-
 @api_view(['POST'])
-@permission_classes([AllowAny])
-def login(request):
-    serializer = LoginSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-
-    email = serializer.validated_data['email']
-    password = serializer.validated_data['password']
-
-    user = authenticate(email=email, password=password)
+def login_view(request):
+    user = authenticate(
+        email=request.data.get("email"),
+        password=request.data.get("password")
+    )
 
     if not user:
-        return Response(
-            {"error": "البريد الإلكتروني أو كلمة المرور غير صحيحة"},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
-
-    if not user.is_active:
-        return Response(
-            {"error": "هذا الحساب غير نشط"},
-            status=status.HTTP_403_FORBIDDEN
-        )
+        return Response({"detail": "Invalid credentials"}, status=401)
 
     token, _ = Token.objects.get_or_create(user=user)
 
-    response = Response(
-        {
-            "message": "تم تسجيل الدخول بنجاح",
-            "user_type": user.user_type,
-            "full_name": user.full_name,
-            "email":user.email,
-            "phone_number":user.phone_number
-        },
-        status=status.HTTP_200_OK
+    response = Response({"message": "Login successful"})
+
+    response.set_cookie(
+        key="auth_token",
+        value=token.key,
+        httponly=True,
+        secure=False,
+        samesite="Lax",
     )
 
-    set_auth_cookie(response,token.key)
-
     return response
-
 
 
 @api_view(['POST'])
-def logout(request):
-    token = request.COOKIES.get('auth_token')
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    Token.objects.filter(user=request.user).delete()
 
-    if token:
-        Token.objects.filter(key=token).delete()
+    response = Response({"message": "Logged out"})
+    response.delete_cookie("auth_token")
 
-    response = Response(
-        {"message": "تم تسجيل الخروج بنجاح"},
-        status=status.HTTP_200_OK
-    )
-
-    response.delete_cookie('auth_token')
     return response
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def profile(request):
+    user = request.user
+
+    if user.user_type == "normal":
+        profile_data = {
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone_number": user.phone_number,
+            "national_id": user.normal_profile.national_id,
+        }
+
+    elif user.user_type == "community":
+        profile_data = {
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone_number": user.phone_number,
+            "community_name": user.community_profile.community_name,
+            "membership_number": user.community_profile.membership_number,
+        }
+
+    else:
+        profile_data = {
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone_number": user.phone_number,
+        }
+
+    return Response({
+        "user_type": user.user_type,
+        "profile": profile_data
+    })
