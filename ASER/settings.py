@@ -22,7 +22,7 @@ SECRET_KEY = 'django-insecure-l1@llene&*armz141=d29_+c6k*2-l36#!wijnjyw*0*(341+q
 
 DEBUG = False
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost","https://teriaq_medical_BE.onrender.com"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost","https://teriaq-medical-be.onrender.com"]
 
 
 JAZZMIN_SETTINGS = {
@@ -142,7 +142,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
-    "https://teriaq_medical_BE.onrender.com"
+    "https://teriaq-medical-be.onrender.com"
 ]
 
 if DEBUG:
