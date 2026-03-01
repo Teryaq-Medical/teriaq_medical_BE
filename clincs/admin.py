@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Clincs
+from .models import Clinic
 
-@admin.register(Clincs)
+@admin.register(Clinic)
 class ClinicAdmin(admin.ModelAdmin):
     list_display = ('user', 'name', 'clinic_image')
     list_filter = ('user',)
@@ -12,7 +12,9 @@ class ClinicAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            'fields': ('user', 'name', 'Specialist', 'image', 'clinic_image')  # add clinic_image here
+            'fields': ('user', 'name', 'specialists', 'image', 'clinic_image','about',
+                'insurance',
+                'certificates',)  # add clinic_image here
         }),
     )
 

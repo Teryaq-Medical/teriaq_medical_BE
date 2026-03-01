@@ -1,15 +1,12 @@
-from .models import Labs,LapCategory
+from .models import Lab
 from rest_framework import serializers
+from specialists.serializers import SpecialistSerializer
 
 
-class LabCategoriesSerializers(serializers.ModelSerializer):
-    class Meta:
-        model = LapCategory
-        fields = '__all__'
 
 class LabsSerializers(serializers.ModelSerializer):
-    categories = LabCategoriesSerializers(many=True,read_only=True)
+    specialists = SpecialistSerializer(many=True,read_only=True)
     
     class Meta:
-        model= Labs
-        fields = ['id','name','image','address','phone','email','rating','categories']
+        model= Lab
+        fields = ['id','name','image','address','phone','email','rating','specialists']

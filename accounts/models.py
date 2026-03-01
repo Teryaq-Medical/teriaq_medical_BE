@@ -6,8 +6,9 @@ from .managers import UserManager
 
 class User(AbstractBaseUser, PermissionsMixin):
     USER_TYPE_CHOICES = (
-        ('community', 'عضو مجتمع'),
         ('normal', 'مستخدم عادي'),
+        ('hospitals', 'مستشفي'),
+        ('labs', 'معمل'),
         ('doctors','أطباء'),
         ('clincs','عيادات')
     )

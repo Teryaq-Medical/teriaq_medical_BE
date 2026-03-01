@@ -7,32 +7,38 @@ from accounts.models import User, NormalUser,CommunityMember
 from django.contrib.auth import authenticate
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import permission_classes
+from .serializers import NormalUserRegisterSerializer,UserProfileSerializer,UserSerializers
+from ASER.viewset import TeriaqViewSets
+from django_filters.rest_framework import DjangoFilterBackend
 
+
+class UsersViewsets(TeriaqViewSets):
+    queryset = User.objects.all()
+    serializer_class = UserSerializers
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['user_type']
+
+
+from django.db import transaction
 
 @api_view(['POST'])
+@transaction.atomic
 def register_normal(request):
-    data = request.data
+    serializer = NormalUserRegisterSerializer(data=request.data)
 
-    if data.get("password") != data.get("confirm_password"):
-        return Response({"detail": "Passwords do not match"}, status=400)
+    if request.data.get("password") != request.data.get("confirm_password"):
+        return Response(
+            {"detail": "كلمات المرور غير متطابقة"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    user = User.objects.create(
-        email=data["email"],
-        full_name=data["full_name"],
-        phone_number=data["phone_number"],
-        user_type="normal",
-        password=make_password(data["password"]),
-    )
+    serializer.is_valid(raise_exception=True)
 
-    NormalUser.objects.create(
-        user=user,
-        national_id=data["national_id"]
-    )
-
-    token = Token.objects.create(user=user)
+    user = serializer.save()
+    token, _ = Token.objects.get_or_create(user=user)
 
     response = Response(
-        {"message": "Registered successfully"},
+        {"message": "Registered successfully", "user_type": user.user_type},
         status=status.HTTP_201_CREATED
     )
 
@@ -40,11 +46,12 @@ def register_normal(request):
         key="auth_token",
         value=token.key,
         httponly=True,
-        secure=False,   # True in production
+        secure=False,
         samesite="Lax",
     )
 
     return response
+
 
 
 @api_view(['POST'])
@@ -124,33 +131,6 @@ def logout_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def profile(request):
-    user = request.user
-
-    if user.user_type == "normal":
-        profile_data = {
-            "full_name": user.full_name,
-            "email": user.email,
-            "phone_number": user.phone_number,
-            "national_id": user.normal_profile.national_id,
-        }
-
-    elif user.user_type == "community":
-        profile_data = {
-            "full_name": user.full_name,
-            "email": user.email,
-            "phone_number": user.phone_number,
-            "community_name": user.community_profile.community_name,
-            "membership_number": user.community_profile.membership_number,
-        }
-
-    else:
-        profile_data = {
-            "full_name": user.full_name,
-            "email": user.email,
-            "phone_number": user.phone_number,
-        }
-
-    return Response({
-        "user_type": user.user_type,
-        "profile": profile_data
-    })
+    # Use the serializer to structure the data correctly for the frontend
+    serializer = UserProfileSerializer(request.user)
+    return Response(serializer.data)

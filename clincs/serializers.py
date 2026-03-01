@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Clincs
+from .models import Clinic
 from specialists.serializers import SpecialistSerializer
 
 
@@ -9,7 +9,7 @@ class ClincsSerializer(serializers.ModelSerializer):
     
 
     class Meta:
-        model = Clincs
+        model = Clinic
         fields = ['id', 'name', 'image_url','Specialist']
     
     def get_image_url(self, obj):

@@ -1,16 +1,16 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Labs, LapCategory
+from .models import Lab,LabSpecialists
 
+admin.site.register(LabSpecialists)
 
-@admin.register(Labs)
+@admin.register(Lab)
 class LabsAdmin(admin.ModelAdmin):
-
     # ===== LIST VIEW =====
     list_display = (
         'user',
         'name',
-        'categories_list',
+        'get_specialists',  # <-- changed
         'image_preview',
         'address',
         'phone',
@@ -30,7 +30,10 @@ class LabsAdmin(admin.ModelAdmin):
             'fields': (
                 'user',
                 'name',
-                'categories',
+                'specialists',
+                'about',
+                'insurance',
+                'certificates',
                 'address',
                 'phone',
                 'email',
@@ -55,7 +58,6 @@ class LabsAdmin(admin.ModelAdmin):
 
     image_preview.short_description = "معاينة الصورة"
 
-    def categories_list(self, obj):
-        return ", ".join(obj.categories.values_list('name', flat=True))
-
-    categories_list.short_description = "التخصصات"
+    def get_specialists(self, obj):
+        return ", ".join([s.name for s in obj.specialists.all()])
+    get_specialists.short_description = "الأخصائيون"

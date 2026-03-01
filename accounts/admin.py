@@ -7,10 +7,18 @@ from django.dispatch import receiver
 from .models import User
 from rest_framework.authtoken.models import Token
 
+from ASER.models import *
+
+admin.site.register(Certifications)
+admin.site.register(Biography)
+admin.site.register(Insurance)
+
+
 try:
     admin.site.unregister(Token)
 except admin.sites.NotRegistered:
     pass
+
 
 
 @receiver(post_save, sender=User)

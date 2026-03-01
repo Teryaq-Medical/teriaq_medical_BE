@@ -13,6 +13,7 @@ class HospitalAdmin(admin.ModelAdmin):
         'address',
         'phone',
         'email',
+        'about',
         'rating',
     )
 
@@ -26,7 +27,10 @@ class HospitalAdmin(admin.ModelAdmin):
             'fields': (
                 'user',
                 'name',
-                'specialist',
+                'about',
+                'insurance',
+                'certificates',
+                'specialists',
                 'address',
                 'phone',
                 'email',
@@ -52,6 +56,11 @@ class HospitalAdmin(admin.ModelAdmin):
     image_preview.short_description = "معاينة الصورة"
 
     def specialists_list(self, obj):
-        return ", ".join(obj.specialist.values_list('name', flat=True))
+        return ", ".join(obj.specialists.values_list('name', flat=True))
+
+    def bio_text(self, obj):
+        return obj.about.bio if obj.about else "—"
+
+    bio_text.short_description = "السيرة"
 
     specialists_list.short_description = "التخصصات"
