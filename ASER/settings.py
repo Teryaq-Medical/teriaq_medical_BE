@@ -142,6 +142,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
+    "https://teriaq_medical_BE.onrender.com"
 ]
 
 if DEBUG:
@@ -227,4 +228,4 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')] # If you have a global sta
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
