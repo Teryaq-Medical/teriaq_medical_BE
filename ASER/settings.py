@@ -47,12 +47,12 @@ JAZZMIN_SETTINGS = {
     ],
     
     "icons": {
-        "accounts.user": "fas fa-user",             # user icon
-        "clincs.Clincs": "fas fa-clinic-medical",     # clinic icon
-        "doctors.Doctors": "fas fa-user-doctor",       # doctor icon
-        "labs.Labs": "fas fa-vials",                # lab icon
-        "hospitals.Hospital": "fas fa-hospital",        # hospital icon
-        "specialists.Specialist": "fas fa-stethoscope",   # stethoscope icon
+        "accounts.user": "fas fa-user",
+        "clincs.Clincs": "fas fa-clinic-medical",
+        "doctors.Doctors": "fas fa-user-doctor",
+        "labs.Labs": "fas fa-vials",
+        "hospitals.Hospital": "fas fa-hospital",
+        "specialists.Specialist": "fas fa-stethoscope",
     },
 
     "welcome_sign": "رعايتك الصحية… أسهل وأسرع",
@@ -67,8 +67,8 @@ JAZZMIN_SETTINGS = {
 
 
 JAZZMIN_UI_TWEAKS = {
-    "theme": "default", 
-    "dark_mode_theme": None,
+    "theme": "default",
+    "dark_mode_theme": "default",  # بدل None
     "accent": "accent-info",
     "sidebar": "sidebar-dark-info",
     "sidebar_fixed": True,
@@ -76,11 +76,11 @@ JAZZMIN_UI_TWEAKS = {
     "footer_fixed": False,
     "layout_boxed": False,
     "button_classes": {
-        "primary": "btn-info",           
-        "secondary": "btn-warning", 
-        "info": "btn-warning",              
-        "warning": "btn-warning",        
-        "success": "btn-info",          
+        "primary": "btn-info",
+        "secondary": "btn-warning",
+        "info": "btn-warning",
+        "warning": "btn-warning",
+        "success": "btn-info",
         "danger": "btn-danger",
     },
 }
