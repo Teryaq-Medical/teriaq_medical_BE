@@ -196,13 +196,13 @@ else:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("NAME"),  # اسم قاعدة البيانات في Supabase
-            "USER": os.getenv("USER"),  # اسم المستخدم
-            "PASSWORD": os.getenv("PASSWORD"),  # كلمة المرور بدون ترميز %3F
-            "HOST": os.getenv("HOST"),
-            "PORT": os.getenv("PORT "),
+            "NAME": os.getenv("DB_NAME", "postgres"),
+            "USER": os.getenv("DB_USER", "postgres"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "db.qyjrvsepwoolckmyfmty.supabase.co"),
+            "PORT": os.getenv("DB_PORT", "5432"),  # Port Supabase
             "OPTIONS": {
-                "sslmode": "require",  # مهم لاتصال آمن بـ Supabase
+                "sslmode": "require",
             },
         }
     }
