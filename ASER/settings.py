@@ -141,11 +141,13 @@ MIDDLEWARE = [
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # أو رابط الفرونت الحقيقي
+    "http://localhost:3000",
+    "https://teriaq-medical-fe.vercel.app" # أو رابط الفرونت الحقيقي
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
+    "https://teriaq-medical-fe.vercel.app",
     "https://teriaq-medical-be.onrender.com"
 ]
 
