@@ -22,7 +22,11 @@ SECRET_KEY = 'django-insecure-l1@llene&*armz141=d29_+c6k*2-l36#!wijnjyw*0*(341+q
 
 DEBUG = False
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost","https://teriaq-medical-be.onrender.com"]
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    "localhost",
+    "teriaq-medical-be.onrender.com",
+]
 
 
 JAZZMIN_SETTINGS = {
