@@ -86,8 +86,8 @@ def register_community(request):
         key="auth_token",
         value=token.key,
         httponly=True,
-        secure=False,
-        samesite="Lax",
+        secure=True,
+        samesite="None",
     )
 
     return response
