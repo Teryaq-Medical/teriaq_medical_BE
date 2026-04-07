@@ -22,9 +22,6 @@ class DoctorAssignmentViewSet(TeriaqViewSets):
         l_id = self.request.query_params.get('lab_id')
         doctor_id = self.request.query_params.get('doctor_id')
 
-    # -------------------------
-    # ENTITY FILTERING
-    # -------------------------
 
         if h_id:
             ct = ContentType.objects.get_for_model(Hospital)

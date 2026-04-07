@@ -7,6 +7,7 @@ from cloudinary.models import CloudinaryField
 from accounts.models import User
 
 
+
 class Doctor(models.Model):
     user = models.OneToOneField(
         User,
@@ -52,6 +53,8 @@ class UnregisteredDoctor(models.Model):
 
     allow_online_booking = models.BooleanField(
         default=False,
+        null=True,
+        blank=True,
         help_text="Admin approval for online booking"
     )
 

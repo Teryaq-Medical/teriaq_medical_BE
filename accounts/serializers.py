@@ -4,9 +4,31 @@ from accounts.models import User, NormalUser, CommunityMember
 
 
 class UserSerializers(serializers.ModelSerializer):
+    entity_id = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = '__all__'
+
+    def get_entity_id(self, obj):
+
+        # ✅ Doctor (has related_name)
+        if obj.user_type == "doctors" and hasattr(obj, "doctor_profile"):
+            return obj.doctor_profile.id
+
+        # ✅ Hospital (no related_name → use model name)
+        if obj.user_type == "hospitals" and hasattr(obj, "hospital"):
+            return obj.hospital.id
+
+        # ✅ Lab
+        if obj.user_type == "labs" and hasattr(obj, "lab"):
+            return obj.lab.id
+
+        # ✅ Clinic
+        if obj.user_type == "clincs" and hasattr(obj, "clinic"):
+            return obj.clinic.id
+
+        return None
 
 
 class BaseRegisterSerializer(serializers.Serializer):
@@ -86,13 +108,37 @@ class LoginSerializer(serializers.Serializer):
     )
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    # These fields match the 'source' keys in your TypeScript FieldConfig
     normal_profile = serializers.SerializerMethodField()
     community_profile = serializers.SerializerMethodField()
+    entity_id = serializers.SerializerMethodField()  # ✅ ADD THIS
 
     class Meta:
         model = User
-        fields = ['email', 'full_name', 'phone_number', 'user_type', 'normal_profile', 'community_profile']
+        fields = [
+            'email',
+            'full_name',
+            'phone_number',
+            'user_type',
+            'is_superuser',
+            'entity_id',          # ✅ ADD THIS
+            'normal_profile',
+            'community_profile',
+        ]
+
+    def get_entity_id(self, obj):
+        if obj.user_type == "doctors" and hasattr(obj, "doctor_profile"):
+            return obj.doctor_profile.id
+
+        if obj.user_type == "hospitals" and hasattr(obj, "hospital"):
+            return obj.hospital.id
+
+        if obj.user_type == "labs" and hasattr(obj, "lab"):
+            return obj.lab.id
+
+        if obj.user_type == "clincs" and hasattr(obj, "clinic"):
+            return obj.clinic.id
+
+        return None
 
     def get_normal_profile(self, obj):
         if obj.user_type == "normal" and hasattr(obj, 'normal_profile'):

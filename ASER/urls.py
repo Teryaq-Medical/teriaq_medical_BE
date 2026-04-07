@@ -14,6 +14,8 @@ urlpatterns = [
     path('api/', include('labs.urls')),
     path('api/', include('accounts.urls')),
     path('api/', include('appointments.urls')),
+    path("api/dashboard/", include("dashboard.urls")),
+    path('', include('entities.urls')),
     path('api/<str:entity_type>/<int:entity_id>/insurance/', InsuranceViewSet.as_view({'get': 'list', 'post': 'create'})),
     path('api/<str:entity_type>/<int:entity_id>/certifications/', CertificationsViewSet.as_view({'get': 'list', 'post': 'create'})),
     path('api/<str:entity_type>/<int:entity_id>/bio/', BiographyViewSet.as_view({'get': 'list', 'post': 'create'})),  # <-- moved here

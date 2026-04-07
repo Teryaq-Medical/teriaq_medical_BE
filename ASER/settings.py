@@ -110,7 +110,9 @@ INSTALLED_APPS = [
     "labs",
     "hospitals",
     "specialists",
-    "appointments"
+    "appointments",
+    "dashboard",
+    "entities"
     
 ]
 
