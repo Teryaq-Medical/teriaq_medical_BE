@@ -1,13 +1,15 @@
+# dashboard/serializers.py
+
 from rest_framework import serializers
 from specialists.models import Specialist
 from ASER.models import Insurance, Certifications, Biography
-from doctors.models import DoctorAssignment, WorkSchedule,Doctor
+from doctors.models import DoctorAssignment, WorkSchedule, Doctor
+from doctors.serializers import DoctorSerializers, UnregisteredDoctorSerializer  # Import UnregisteredDoctorSerializer
 from django.contrib.contenttypes.models import ContentType
-from doctors.serializers import DoctorSerializers
 from appointments.models import Appointment
 from appointments.serializers import AppointmentSerializer
 from django.db.models import Count, Q
-
+from specialists.serializers import SpecialistSerializer
 
 
 class AppointmentStatsSerializer(serializers.Serializer):
@@ -62,8 +64,8 @@ class WorkScheduleSerializer(serializers.ModelSerializer):
 
 class DoctorAssignmentSerializer(serializers.ModelSerializer):
     schedules = WorkScheduleSerializer(many=True, read_only=True)
-    doctor = DoctorSerializers()
-
+    doctor = DoctorSerializers(read_only=True)
+    unregistered_doctor = UnregisteredDoctorSerializer(read_only=True)  # ✅ ADD THIS
 
     class Meta:
         model = DoctorAssignment
@@ -71,51 +73,48 @@ class DoctorAssignmentSerializer(serializers.ModelSerializer):
             "id",
             "status",
             "doctor",
+            "unregistered_doctor",  # ✅ ADD THIS
             "schedules",
             "created_at"
         ]
 
 
 class EntitySerializer(serializers.ModelSerializer):
-
     specialists = SpecialistSerializer(many=True, read_only=True)
     insurance = InsuranceSerializer(many=True, read_only=True)
     certificates = CertificateSerializer(many=True, read_only=True)
     about = BiographySerializer(read_only=True)
-    appointment_stats = serializers.SerializerMethodField() 
-
+    appointment_stats = serializers.SerializerMethodField()
     assignments = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = None
         fields = "__all__"
 
+
+    def get_image_url(self, obj):
+        if obj.image:
+            return obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
+        return None
+    
     def get_assignments(self, obj):
-
         content_type = ContentType.objects.get_for_model(obj)
-
         assignments = DoctorAssignment.objects.filter(
             content_type=content_type,
             object_id=obj.id
         ).prefetch_related("schedules")
-
         return DoctorAssignmentSerializer(assignments, many=True).data
     
     def get_appointment_stats(self, obj):
         content_type = ContentType.objects.get_for_model(obj)
-
-        # 1. Get all assignments for this entity
         assignments = DoctorAssignment.objects.filter(
             content_type=content_type,
             object_id=obj.id
         )
-
-        # 2. Get the base queryset for appointments
         appointment_qs = Appointment.objects.filter(
             assignment__in=assignments
-        ).select_related('patient', 'assignment', 'schedule') # Optimized for performance
-
-        # 3. Calculate aggregates
+        ).select_related('patient', 'assignment', 'schedule')
         stats = appointment_qs.aggregate(
             total=Count("id"),
             confirmed=Count("id", filter=Q(status="confirmed")),
@@ -123,9 +122,18 @@ class EntitySerializer(serializers.ModelSerializer):
             completed=Count("id", filter=Q(status="completed")),
             no_show=Count("id", filter=Q(status="no_show")),
         )
-
-        # 4. Combine aggregates with the actual list of detailed bookings
         stats['bookings'] = appointment_qs.order_by('-appointment_date', '-appointment_time')
-
-        # 5. Return through the serializer
         return AppointmentStatsSerializer(stats).data
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if hasattr(instance, 'specialist'):
+            specialist = instance.specialist
+            if specialist:
+                data['specialist'] = {
+                    'id': specialist.id,
+                    'name': specialist.name
+                }
+            else:
+                data['specialist'] = None
+        return data

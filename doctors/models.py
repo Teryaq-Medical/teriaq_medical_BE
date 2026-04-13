@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
+from ASER.models import Biography, Certifications, Insurance
 from specialists.models import Specialist
 from cloudinary.models import CloudinaryField
 from accounts.models import User
@@ -24,6 +25,9 @@ class Doctor(models.Model):
     license_number = models.CharField(max_length=100, unique=True)
     license_document = CloudinaryField("license")
     profile_image = CloudinaryField("image")
+    
+    insurance = models.ManyToManyField(Insurance, blank=True)
+    certificates = models.ManyToManyField(Certifications, blank=True)
 
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -46,6 +50,10 @@ class UnregisteredDoctor(models.Model):
 
     license_number = models.CharField(max_length=100)
     license_document = CloudinaryField("license")
+    
+    insurance = models.ManyToManyField(Insurance, blank=True)
+    certificates = models.ManyToManyField(Certifications, blank=True)
+    about = models.ForeignKey(Biography, on_delete=models.SET_NULL, null=True, blank=True)
 
     is_verified = models.BooleanField(default=False)
 

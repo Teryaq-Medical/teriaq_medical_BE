@@ -3,7 +3,8 @@ from .views import (
     DashboardView,
     AppointmentChartView,
     RecentAppointmentsView,
-    EntitiesViewSet
+    EntitiesViewSet,
+    CreateEntityView
 )
 
 
@@ -37,4 +38,5 @@ urlpatterns = [
         entities_detail,
         name="entities-detail"
     ),
+    path('entities/<str:entity_type>/create/', CreateEntityView.as_view(), name='create-entity'),
 ]

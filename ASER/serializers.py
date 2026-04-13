@@ -32,11 +32,68 @@ class BiographySerializer(serializers.ModelSerializer):
         fields = ['id', 'bio', 'bio_details', 'experiance', 'operaiton']
 
 
-# Write Serializers for Update Operations
+
+# ASER/serializers.py
+
 class InsuranceWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Insurance
         fields = ['entity', 'status']
+        
+    def validate_status(self, value):
+        # Valid Arabic choices from the model
+        valid_choices = ['تغطية كاملة', 'عادية', 'جزئية', 'منتهية']
+        
+        # Mapping for common frontend values
+        mapping = {
+            'active': 'عادية',
+            'full': 'تغطية كاملة',
+            'standard': 'عادية',
+            'partial': 'جزئية',
+            'expired': 'منتهية'
+        }
+        
+        # Convert if needed
+        if value in mapping:
+            return mapping[value]
+        
+        # Accept if already valid
+        if value in valid_choices:
+            return value
+        
+        raise serializers.ValidationError(f"Invalid status. Use one of: {valid_choices} or active/full/standard/partial/expired")
+
+
+class CertificationsWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Certifications
+        fields = ['name', 'entity']
+
+
+# ASER/serializers.py
+
+from rest_framework import serializers
+from .models import Insurance, Certifications, Biography
+
+class InsuranceWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Insurance
+        fields = ['entity', 'status']
+        
+    def validate_status(self, value):
+        valid_choices = ['تغطية كاملة', 'عادية', 'جزئية', 'منتهية']
+        mapping = {
+            'active': 'عادية',
+            'full': 'تغطية كاملة',
+            'standard': 'عادية',
+            'partial': 'جزئية',
+            'expired': 'منتهية'
+        }
+        if value in mapping:
+            return mapping[value]
+        if value in valid_choices:
+            return value
+        raise serializers.ValidationError(f"Invalid status. Use one of: {valid_choices} or active/full/standard/partial/expired")
 
 
 class CertificationsWriteSerializer(serializers.ModelSerializer):
@@ -49,3 +106,9 @@ class BiographyWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Biography
         fields = ['bio', 'bio_details', 'experiance', 'operaiton']
+        extra_kwargs = {
+            'bio': {'required': False, 'allow_blank': True},
+            'bio_details': {'required': False, 'allow_blank': True},
+            'experiance': {'required': False},
+            'operaiton': {'required': False},
+        }

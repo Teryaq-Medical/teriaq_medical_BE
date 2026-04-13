@@ -1,10 +1,10 @@
 from rest_framework.response import Response
 from django.contrib.contenttypes.models import ContentType
-from .models import Doctor, WorkSchedule, DoctorAssignment
+from .models import Doctor, WorkSchedule, DoctorAssignment,UnregisteredDoctor
 from hospitals.models import Hospital
 from clincs.models import Clinic
 from labs.models import Lab
-from .serializers import DoctorSerializers, WorkScheduleSerializer, DoctorAssignmentSerializer
+from .serializers import DoctorSerializers, WorkScheduleSerializer, DoctorAssignmentSerializer,UnregisteredDoctorSerializer
 from ASER.permissions import IsAdminOrReadOnly
 from ASER.viewset import TeriaqViewSets
 
@@ -82,4 +82,9 @@ class WorkScheduleViewSet(TeriaqViewSets):
 class DoctorsViewSet(TeriaqViewSets):
     queryset = Doctor.objects.all()
     serializer_class = DoctorSerializers
+    permission_classes = [IsAdminOrReadOnly]
+
+class UnregisteredDoctorsViewSet(TeriaqViewSets):
+    queryset = UnregisteredDoctor.objects.all()
+    serializer_class = UnregisteredDoctorSerializer
     permission_classes = [IsAdminOrReadOnly]
