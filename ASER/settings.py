@@ -166,10 +166,16 @@ else:
     CSRF_COOKIE_SAMESITE = 'None'
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    
+
     SESSION_COOKIE_HTTPONLY = True
-    CSRF_COOKIE_HTTPONLY = True
-    
+
+    # ❌ خليه False
+    CSRF_COOKIE_HTTPONLY = False  
+
+    # 🔥 أهم سطرين
+    SESSION_COOKIE_DOMAIN = ".onrender.com"
+    CSRF_COOKIE_DOMAIN = ".onrender.com"
+
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 ROOT_URLCONF = 'ASER.urls'

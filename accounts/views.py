@@ -123,6 +123,7 @@ def login_view(request):
         httponly=True,
         secure=not settings.DEBUG,   # مهم
         samesite="None" if not settings.DEBUG else "Lax",
+        domain=".onrender.com",
         path="/",
     )
 
