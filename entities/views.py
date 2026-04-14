@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 # ==================== ENTITY UPDATE (Basic Info) ====================
 # entities/views.py – replace EntityUpdateView
 
+# entities/views.py
+
 class EntityUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -36,36 +38,83 @@ class EntityUpdateView(APIView):
         app_label, model_name = model_path.split(".")
         return apps.get_model(app_label, model_name)
 
+    def upload_base64_image(self, base64_str):
+        """
+        Upload base64 image to Cloudinary and return the public ID.
+        If the input is already a URL, extract public ID or return as is.
+        """
+        if not base64_str or not isinstance(base64_str, str):
+            return None
+    
+    # If it's already a full URL, try to extract public ID
+        if base64_str.startswith('http://') or base64_str.startswith('https://'):
+        # Extract public ID from Cloudinary URL
+        # Example: https://res.cloudinary.com/cloud_name/image/upload/v123/public_id.jpg
+            import re
+            match = re.search(r'/image/upload/(?:v\d+/)?([^/.]+)', base64_str)
+            if match:
+                return match.group(1)
+            return base64_str  # fallback
+    
+    # If it's a base64 data URL
+        if base64_str.startswith('data:image'):
+            try:
+                result = upload(base64_str)
+            # Return the public ID (not the full URL)
+                return result.get('public_id')
+            except Exception as e:
+                print(f"❌ Cloudinary upload failed: {e}")
+                return None
+    
+    # If it's already a public ID (no slashes, alphanumeric), return as is
+        if re.match(r'^[a-zA-Z0-9_]+$', base64_str):
+            return base64_str
+    
+        return None
+
     def put(self, request, entity_type, id):
         model = self.get_model(entity_type)
         if not model:
-            return Response({"error": "Invalid entity type"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid entity type"}, status=400)
 
         try:
-            # Admin/staff can update any entity; owners can update only their own
             if request.user.is_staff or request.user.is_superuser:
                 entity = model.objects.get(id=id)
             else:
                 entity = model.objects.get(id=id, user=request.user)
         except model.DoesNotExist:
-            return Response({"error": "Entity not found or you don't have permission"}, 
-                          status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Entity not found or no permission"}, status=404)
 
-        # Base updatable fields
-        updatable_fields = ['name', 'address', 'phone', 'email', 'description']
-        for field in updatable_fields:
-            if field in request.data:
-                setattr(entity, field, request.data[field])
+        # Copy request data to avoid mutation
+        data = request.data.copy()
 
-        # Handle doctor-specific `is_verified`
-        if entity_type == "doctors" and 'is_verified' in request.data:
-            entity.is_verified = request.data['is_verified']
+        # Handle image uploads for labs/hospitals/clinics
+        if 'image' in data:
+            try:
+                uploaded_url = self.upload_base64_image(data['image'])
+                if uploaded_url:
+                    data['image'] = uploaded_url
+            except Exception as e:
+                return Response({"error": f"Image upload failed: {str(e)}"}, status=400)
 
-        entity.save()
-        serializer = self.get_serializer(entity, entity_type)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        # Handle profile_image for doctors
+        if 'profile_image' in data:
+            try:
+                uploaded_url = self.upload_base64_image(data['profile_image'])
+                if uploaded_url:
+                    data['profile_image'] = uploaded_url
+            except Exception as e:
+                return Response({"error": f"Profile image upload failed: {str(e)}"}, status=400)
 
-    def get_serializer(self, entity, entity_type):
+        # Use serializer for update (now image is a URL)
+        serializer_class = self.get_serializer_class(entity_type)
+        serializer = serializer_class(entity, data=data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
+        return Response(serializer.errors, status=400)
+
+    def get_serializer_class(self, entity_type):
         from hospitals.serializers import HospitalSerializers
         from clincs.serializers import ClincsSerializer
         from labs.serializers import LabsSerializers
@@ -76,8 +125,7 @@ class EntityUpdateView(APIView):
             "labs": LabsSerializers,
             "doctors": DoctorSerializers,
         }
-        serializer_class = mapping.get(entity_type)
-        return serializer_class(entity)
+        return mapping.get(entity_type)
 # ==================== ENTITY ABOUT UPDATE (FIXED) ====================
 class EntityAboutUpdateView(APIView):
     permission_classes = [IsAuthenticated]

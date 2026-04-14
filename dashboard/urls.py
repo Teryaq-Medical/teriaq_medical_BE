@@ -4,7 +4,8 @@ from .views import (
     AppointmentChartView,
     RecentAppointmentsView,
     EntitiesViewSet,
-    CreateEntityView
+    CreateEntityView,
+    LabBookingChartView,
 )
 
 
@@ -26,6 +27,7 @@ urlpatterns = [
     path("appointments-chart/", AppointmentChartView.as_view()),
 
     path("recent-appointments/", RecentAppointmentsView.as_view()),
+    path("lab-bookings-chart/", LabBookingChartView.as_view()),
 
     path(
         "entities/<str:entity_type>/",

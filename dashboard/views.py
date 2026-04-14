@@ -11,20 +11,31 @@ from appointments.models import Appointment, LabBooking
 from django.apps import apps
 from .serializers import EntitySerializer
 from ASER.viewset import TeriaqViewSets
+# dashboard/views.py
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAdminUser
+from rest_framework import status
+from django.contrib.auth.hashers import make_password
+from accounts.models import User
+from hospitals.models import Hospital
+from clincs.models import Clinic
+from labs.models import Lab
+from doctors.models import Doctor, Specialist
+from cloudinary.uploader import upload
+import random
+import string
 
 
 
 class DashboardView(APIView):
-
     def get(self, request):
-
         user = request.user
 
         # -------------------
         # ADMIN DASHBOARD
         # -------------------
         if user.is_staff:
-
             data = {
                 "doctors": Doctor.objects.count(),
                 "clinics": Clinic.objects.count(),
@@ -33,19 +44,14 @@ class DashboardView(APIView):
                 "appointments": Appointment.objects.count(),
                 "lab_bookings": LabBooking.objects.count(),
             }
-
             return Response({"dashboard": "admin", "data": data})
 
         # -------------------
         # DOCTOR DASHBOARD
         # -------------------
-
         if user.user_type == "doctors":
-
             doctor = Doctor.objects.get(user=user)
-
-            appointments = Appointment.objects.filter(doctor=doctor).count()
-
+            appointments = Appointment.objects.filter(assignment__doctor=doctor).count()
             return Response({
                 "dashboard": "doctor",
                 "data": {
@@ -57,67 +63,135 @@ class DashboardView(APIView):
         # -------------------
         # HOSPITAL DASHBOARD
         # -------------------
-
         if user.user_type == "hospitals":
-
             hospital = Hospital.objects.get(user=user)
-
             return Response({
                 "dashboard": "hospital",
                 "data": {
                     "specialists": hospital.specialists.count(),
+                    "doctors": hospital.assignments.count(),
+                    "appointments": Appointment.objects.filter(
+                        assignment__content_type__model="hospital",
+                        assignment__object_id=hospital.id
+                    ).count(),
                 }
             })
 
         # -------------------
         # CLINIC DASHBOARD
         # -------------------
-
         if user.user_type == "clincs":
-
             clinic = Clinic.objects.get(user=user)
-
             return Response({
                 "dashboard": "clinic",
                 "data": {
                     "specialists": clinic.specialists.count(),
+                    "doctors": clinic.assignments.count(),
+                    "appointments": Appointment.objects.filter(
+                        assignment__content_type__model="clinic",
+                        assignment__object_id=clinic.id
+                    ).count(),
                 }
             })
 
         # -------------------
         # LAB DASHBOARD
         # -------------------
-
         if user.user_type == "labs":
-
             lab = Lab.objects.get(user=user)
-
             bookings = LabBooking.objects.filter(lab=lab).count()
-
             return Response({
                 "dashboard": "lab",
                 "data": {
-                    "bookings": bookings
+                    "bookings": bookings,
                 }
             })
-        
+
+        return Response({"dashboard": "unknown", "data": {}})
+
 
 class AppointmentChartView(APIView):
-
     def get(self, request):
+        user = request.user
+        range_param = request.query_params.get('range', '30d')
+        days = 90
+        if range_param == '30d':
+            days = 30
+        elif range_param == '7d':
+            days = 7
 
-        qs = (
-            Appointment.objects
-            .annotate(date=TruncDate("created_at"))
+        from datetime import date, timedelta
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+
+        # Get appointments based on user role
+        if user.is_staff:
+            qs = Appointment.objects.filter(created_at__date__gte=start_date)
+        elif user.user_type == "normal":
+            qs = Appointment.objects.filter(patient=user, created_at__date__gte=start_date)
+        elif user.user_type in ["hospitals", "clincs", "doctors", "labs"]:
+            from django.contrib.contenttypes.models import ContentType
+            from doctors.models import DoctorAssignment
+
+            if user.user_type == "hospitals":
+                from hospitals.models import Hospital
+                entity = Hospital.objects.get(user=user)
+            elif user.user_type == "clincs":
+                from clincs.models import Clinic
+                entity = Clinic.objects.get(user=user)
+            elif user.user_type == "doctors":
+                from doctors.models import Doctor
+                entity = Doctor.objects.get(user=user)
+            else:  # labs
+                qs = Appointment.objects.none()
+                return Response({"status": "success", "data": []})
+
+            content_type = ContentType.objects.get_for_model(entity)
+            assignments = DoctorAssignment.objects.filter(content_type=content_type, object_id=entity.id)
+            qs = Appointment.objects.filter(assignment__in=assignments, created_at__date__gte=start_date)
+        else:
+            qs = Appointment.objects.none()
+
+        # Aggregate by date
+        chart_data = (
+            qs.annotate(date=TruncDate("created_at"))
             .values("date")
             .annotate(count=Count("id"))
             .order_by("date")
         )
+        return Response({"status": "success", "data": list(chart_data)})
 
-        return Response({
-            "status": "success",
-            "data": list(qs)
-        })
+
+class LabBookingChartView(APIView):
+    def get(self, request):
+        user = request.user
+        range_param = request.query_params.get('range', '30d')
+        days = 90
+        if range_param == '30d':
+            days = 30
+        elif range_param == '7d':
+            days = 7
+
+        from datetime import date, timedelta
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+
+        if user.is_staff:
+            qs = LabBooking.objects.filter(created_at__date__gte=start_date)
+        elif user.user_type == "labs":
+            from labs.models import Lab
+            lab = Lab.objects.get(user=user)
+            qs = LabBooking.objects.filter(lab=lab, created_at__date__gte=start_date)
+        else:
+            qs = LabBooking.objects.none()
+
+        chart_data = (
+            qs.annotate(date=TruncDate("created_at"))
+            .values("date")
+            .annotate(count=Count("id"))
+            .order_by("date")
+        )
+        return Response({"status": "success", "data": list(chart_data)})
 
 class RecentAppointmentsView(APIView):
 
@@ -217,20 +291,7 @@ class EntitiesViewSet(TeriaqViewSets):
         )
         return serializer_class
 
-# dashboard/views.py
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
-from rest_framework import status
-from django.contrib.auth.hashers import make_password
-from accounts.models import User
-from hospitals.models import Hospital
-from clincs.models import Clinic
-from labs.models import Lab
-from doctors.models import Doctor, Specialist
-from cloudinary.uploader import upload
-import random
-import string
+
 
 class CreateEntityView(APIView):
     permission_classes = [IsAdminUser]
