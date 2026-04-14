@@ -98,12 +98,18 @@ def register_community(request):
 def login_view(request):
     email = request.data.get("email")
     password = request.data.get("password")
+    
+    
+    print(email, password)
+    
 
     user = authenticate(
         username=email,
         password=password
     )
 
+    print(user)
+    
     if not user:
         return Response({"detail": "Invalid credentials"}, status=401)
 
