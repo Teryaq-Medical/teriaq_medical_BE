@@ -98,37 +98,28 @@ def register_community(request):
 def login_view(request):
     email = request.data.get("email")
     password = request.data.get("password")
-    
-    
-    print(email, password)
-    
 
-    user = authenticate(
-        username=email,
-        password=password
-    )
+    user = authenticate(request, email=email, password=password)
 
-    print(user)
-    
     if not user:
         return Response({"detail": "Invalid credentials"}, status=401)
 
     token, _ = Token.objects.get_or_create(user=user)
 
-    response = Response({"message": "Login successful"})
+    response = Response({
+        "message": "Login successful"
+    })
 
     response.set_cookie(
         key="auth_token",
         value=token.key,
         httponly=True,
-        secure=not settings.DEBUG,   # مهم
-        samesite="None" if not settings.DEBUG else "Lax",
-        domain=".onrender.com",
+        secure=True,
+        samesite="Lax", 
         path="/",
     )
 
     return response
-
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

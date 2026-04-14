@@ -1,11 +1,16 @@
-from rest_framework.authentication import TokenAuthentication
+from rest_framework.authentication import BaseAuthentication
+from rest_framework.authtoken.models import Token
 
-class CookieTokenAuthentication(TokenAuthentication):
-
+class CookieTokenAuthentication(BaseAuthentication):
     def authenticate(self, request):
-        token = request.COOKIES.get("auth_token")
+        token_key = request.COOKIES.get("auth_token")
 
-        if not token:
+        if not token_key:
             return None
 
-        return self.authenticate_credentials(token)
+        try:
+            token = Token.objects.get(key=token_key)
+        except Token.DoesNotExist:
+            return None
+
+        return (token.user, token)

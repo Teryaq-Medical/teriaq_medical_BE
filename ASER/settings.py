@@ -145,13 +145,13 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://teriaq-medical-fe.vercel.app",
-    "https://teriaq-dashboard.vercel.app"# أو رابط الفرونت الحقيقي
+    "https://teriaq-dashboard.onrender.com"# أو رابط الفرونت الحقيقي
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "https://teriaq-medical-fe.vercel.app",
-    "https://teriaq-dashboard.vercel.app",
+    "https://teriaq-dashboard.onrender.com",
     "https://teriaq-medical-be.onrender.com"
 ]
 
@@ -162,19 +162,14 @@ if DEBUG:
     CSRF_COOKIE_SECURE = False
 
 else:
-    SESSION_COOKIE_SAMESITE = 'None'
-    CSRF_COOKIE_SAMESITE = 'None'
+    SESSION_COOKIE_SAMESITE = "Lax"  
+    CSRF_COOKIE_SAMESITE = "Lax"
+
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
 
     SESSION_COOKIE_HTTPONLY = True
-
-    # ❌ خليه False
-    CSRF_COOKIE_HTTPONLY = False  
-
-    # 🔥 أهم سطرين
-    SESSION_COOKIE_DOMAIN = ".onrender.com"
-    CSRF_COOKIE_DOMAIN = ".onrender.com"
+    CSRF_COOKIE_HTTPONLY = False
 
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -272,7 +267,7 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['console'],
-            'level': 'DEBUG',
+            'level': 'INFO',
             'propagate': True,
         },
         'django.db.backends': {
