@@ -1,12 +1,69 @@
+# doctors/serializers.py
+
 from rest_framework import serializers
+
+from ASER.serializers import CertificationsSerializer, InsuranceSerializer
 from .models import Doctor, UnregisteredDoctor, DoctorAssignment, WorkSchedule
 from specialists.serializers import SpecialistSerializer
 
+# doctors/serializers.py
+
+from rest_framework import serializers
+from .models import Doctor, DoctorAssignment
+from specialists.serializers import SpecialistSerializer
+from ASER.serializers import InsuranceSerializer, CertificationsSerializer
+
 class DoctorSerializers(serializers.ModelSerializer):
-    specialist = SpecialistSerializer()
+    specialist = SpecialistSerializer(read_only=True)
+    insurance = InsuranceSerializer(many=True, read_only=True)
+    certificates = CertificationsSerializer(many=True, read_only=True)
+
     class Meta:
         model = Doctor
-        fields = ['id','full_name','phone_number','address','profile_image','specialist','is_verified']
+        fields = [
+            'id', 'full_name', 'phone_number', 'address', 'profile_image',
+            'specialist', 'is_verified', 'insurance', 'certificates'
+        ]
+
+    def to_representation(self, instance):
+        """
+        Convert the stored public ID (or Cloudinary resource) into a full image URL.
+        This ensures the frontend receives a usable URL while the model stores only the public ID.
+        """
+        data = super().to_representation(instance)
+        if instance.profile_image:
+            # If it's a Cloudinary resource object, get its URL
+            if hasattr(instance.profile_image, 'url'):
+                data['profile_image'] = instance.profile_image.url
+            # If it's a string (public ID or full URL)
+            elif isinstance(instance.profile_image, str):
+                if instance.profile_image.startswith('http'):
+                    data['profile_image'] = instance.profile_image
+                else:
+                    # Build the full Cloudinary URL from the public ID
+                    from django.conf import settings
+                    cloud_name = getattr(settings, 'CLOUDINARY_CLOUD_NAME', 'drswiflul')
+                    data['profile_image'] = f"https://res.cloudinary.com/{cloud_name}/image/upload/{instance.profile_image}"
+        else:
+            data['profile_image'] = None
+        return data
+
+    # Remove get_assignments method
+
+class UnregisteredDoctorSerializer(serializers.ModelSerializer):
+    specialist = SpecialistSerializer()
+    profile_image = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UnregisteredDoctor
+        fields = ['id', 'full_name', 'phone_number', 'address', 'profile_image', 'specialist', 'is_verified', 'allow_online_booking', 'insurance', 'certificates']
+        read_only_fields = ['allow_online_booking']
+    
+    def get_profile_image(self, obj):
+        if obj.profile_image:
+            return obj.profile_image.url if hasattr(obj.profile_image, 'url') else obj.profile_image
+        return None
+
 
 class WorkScheduleSerializer(serializers.ModelSerializer):
     assignment_id = serializers.PrimaryKeyRelatedField(
@@ -19,42 +76,16 @@ class WorkScheduleSerializer(serializers.ModelSerializer):
     
 
 class DoctorAssignmentSerializer(serializers.ModelSerializer):
-    doctor_info = serializers.SerializerMethodField()
     schedules = WorkScheduleSerializer(many=True, read_only=True)
     entity_type = serializers.SerializerMethodField()
+    doctor = DoctorSerializers(read_only=True)
+    unregistered_doctor = UnregisteredDoctorSerializer(read_only=True)
 
     class Meta:
         model = DoctorAssignment
-        fields = ['id', 'doctor_info', 'status', 'schedules', 'entity_type']
+        fields = ['id', 'doctor', 'unregistered_doctor', 'status', 'schedules', 'entity_type']
 
     def get_entity_type(self, obj):
         if obj.content_type:
             return obj.content_type.model
         return "individual"
-
-    def get_doctor_info(self, obj):
-        doctor = obj.doctor if obj.doctor else obj.unregistered_doctor
-        if not doctor:
-            return None
-
-        image_url = None
-        if obj.doctor and obj.doctor.profile_image:
-            image_url = obj.doctor.profile_image.url
-        elif obj.unregistered_doctor and hasattr(obj.unregistered_doctor, 'profile_image'):
-            if obj.unregistered_doctor.profile_image:
-                image_url = obj.unregistered_doctor.profile_image.url
-
-        name = "Unknown"
-        if hasattr(doctor, 'full_name'):
-            name = doctor.full_name
-        elif hasattr(doctor, 'user') and hasattr(doctor.user, 'full_name'):
-            name = doctor.user.full_name
-
-        return {
-            "assignment_id": obj.id,   # ✅ THIS IS THE FIX
-            "doctor_id": doctor.id,    # optional but useful
-            "name": name,
-            "specialty": [doctor.specialist.name] if hasattr(doctor, 'specialist') else [],
-            "image": image_url,
-            "is_registered": obj.doctor is not None,
-        }

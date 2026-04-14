@@ -11,6 +11,7 @@ from .serializers import NormalUserRegisterSerializer,UserProfileSerializer,User
 from ASER.viewset import TeriaqViewSets
 from django_filters.rest_framework import DjangoFilterBackend
 
+from django.conf import settings
 
 class UsersViewsets(TeriaqViewSets):
     queryset = User.objects.all()
@@ -95,9 +96,12 @@ def register_community(request):
 
 @api_view(['POST'])
 def login_view(request):
+    email = request.data.get("email")
+    password = request.data.get("password")
+
     user = authenticate(
-        email=request.data.get("email"),
-        password=request.data.get("password")
+        username=email,
+        password=password
     )
 
     if not user:
@@ -111,8 +115,9 @@ def login_view(request):
         key="auth_token",
         value=token.key,
         httponly=True,
-        secure=True,
-        samesite="None",
+        secure=not settings.DEBUG,   # مهم
+        samesite="None" if not settings.DEBUG else "Lax",
+        path="/",
     )
 
     return response

@@ -3,7 +3,7 @@ from django.db import transaction, IntegrityError
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Appointment,LabBooking
+from .models import Appointment, LabBooking
 from .serializers import AppointmentSerializer, LabBookingSerializer
 
 logger = logging.getLogger(__name__)
@@ -11,85 +11,147 @@ logger = logging.getLogger(__name__)
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
-    # permission_classes = [IsAuthenticated]  # enable later
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Appointment.objects.filter(
-            patient=self.request.user
-        ).order_by("-created_at")
+        user = self.request.user
+        
+        # If user is staff/admin, see all appointments
+        if user.is_staff:
+            return Appointment.objects.all().select_related('patient', 'assignment').order_by("-created_at")
+        
+        # If user is a patient (normal user), see their own appointments
+        if user.user_type == "normal":
+            return Appointment.objects.filter(patient=user).select_related('patient', 'assignment').order_by("-created_at")
+        
+        # If user is an entity owner (hospital, clinic, doctor, lab)
+        if user.user_type in ["hospitals", "clincs", "doctors", "labs"]:
+            from django.contrib.contenttypes.models import ContentType
+            from doctors.models import DoctorAssignment
+            
+            # Get the entity model based on user_type
+            if user.user_type == "hospitals":
+                from hospitals.models import Hospital
+                entity = Hospital.objects.get(user=user)
+            elif user.user_type == "clincs":
+                from clincs.models import Clinic
+                entity = Clinic.objects.get(user=user)
+            elif user.user_type == "doctors":
+                from doctors.models import Doctor
+                entity = Doctor.objects.get(user=user)
+            elif user.user_type == "labs":
+                from labs.models import Lab
+                entity = Lab.objects.get(user=user)
+            else:
+                return Appointment.objects.none()
+            
+            content_type = ContentType.objects.get_for_model(entity)
+            assignments = DoctorAssignment.objects.filter(
+                content_type=content_type,
+                object_id=entity.id
+            )
+            return Appointment.objects.filter(assignment__in=assignments).select_related('patient', 'assignment').order_by("-created_at")
+        
+        return Appointment.objects.none()
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-
         logger.info("========== APPOINTMENT CREATE START ==========")
-
-        logger.info(f"Request method: {request.method}")
         logger.info(f"User: {request.user}")
-        logger.info(f"Is authenticated: {request.user.is_authenticated}")
         logger.info(f"Payload: {request.data}")
 
         serializer = self.get_serializer(data=request.data)
-
-        # 🔎 Step 1 — Field validation
         if not serializer.is_valid():
-            logger.error("❌ SERIALIZER FIELD VALIDATION FAILED")
-            logger.error(f"Errors: {serializer.errors}")
-            logger.info("========== END ==========")
+            logger.error(f"Validation errors: {serializer.errors}")
             return Response(serializer.errors, status=400)
 
-        logger.info("✅ Serializer field validation passed")
-
-        # 🔎 Step 2 — Try saving
         try:
-            logger.info("💾 Attempting to save appointment...")
             self.perform_create(serializer)
-            logger.info("✅ Appointment saved successfully")
-
         except IntegrityError as e:
-            logger.error("🔥 DATABASE INTEGRITY ERROR")
-            logger.error(str(e))
-            logger.info("========== END ==========")
-            return Response(
-                {"detail": "Database integrity error"},
-                status=400
-            )
-
+            logger.error(f"Integrity error: {e}")
+            return Response({"detail": "Database integrity error"}, status=400)
         except Exception as e:
-            logger.exception("💥 UNEXPECTED ERROR")
-            logger.info("========== END ==========")
-            return Response(
-                {"detail": "Unexpected server error"},
-                status=500
-            )
+            logger.exception("Unexpected error")
+            return Response({"detail": "Unexpected server error"}, status=500)
 
-        logger.info("========== APPOINTMENT CREATE SUCCESS ==========")
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=201)
 
     def perform_create(self, serializer):
-        logger.info("🔧 Inside perform_create")
-        logger.info(f"Saving with user: {self.request.user}")
         serializer.save(patient=self.request.user)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        new_status = request.data.get('status')
+        booking_code = request.data.get('booking_code')
         
+        if new_status == 'completed':
+            if not booking_code:
+                return Response({"error": "Booking code required"}, status=400)
+            if instance.booking_code != booking_code:
+                return Response({"error": "Invalid booking code"}, status=400)
+            instance.status = 'completed'
+            instance.save()
+            return Response(self.get_serializer(instance).data)
+        elif new_status:
+            allowed = ['confirmed', 'cancelled', 'no_show']
+            if new_status not in allowed:
+                return Response({"error": f"Invalid status. Allowed: {allowed}"}, status=400)
+            instance.status = new_status
+            instance.save()
+            return Response(self.get_serializer(instance).data)
+        return super().partial_update(request, *args, **kwargs)
 
 
 class LabBookingViewSet(viewsets.ModelViewSet):
     serializer_class = LabBookingSerializer
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return LabBooking.objects.filter(patient=self.request.user).order_by("-created_at")
+        user = self.request.user
+        lab_id = self.request.query_params.get('lab')
+        
+        if user.is_staff:
+            qs = LabBooking.objects.all()
+            if lab_id:
+                qs = qs.filter(lab_id=lab_id)
+            return qs.select_related('patient').order_by("-created_at")
+        
+        # Check if user is a lab owner
+        from labs.models import Lab
+        try:
+            lab = Lab.objects.get(user=user)
+            qs = LabBooking.objects.filter(lab=lab)
+            if lab_id:
+                qs = qs.filter(lab_id=lab_id)
+            return qs.select_related('patient').order_by("-created_at")
+        except Lab.DoesNotExist:
+            # Regular patient
+            qs = LabBooking.objects.filter(patient=user)
+            if lab_id:
+                qs = qs.filter(lab_id=lab_id)
+            return qs.select_related('patient').order_by("-created_at")
+
+    def partial_update(self, request, *args, **kwargs):
+        booking = self.get_object()
+        if 'status' in request.data:
+            new_status = request.data['status']
+            if new_status == 'completed' and 'booking_code' in request.data:
+                if booking.booking_code != request.data['booking_code']:
+                    return Response({"error": "Invalid booking code"}, status=400)
+            booking.status = new_status
+            booking.save()
+            return Response(self.get_serializer(booking).data)
+        return Response({"error": "Only status updates are allowed"}, status=400)
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
         print("🔥 LAB BOOKING PAYLOAD:", request.data)
-
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
-            print("❌ LAB BOOKING VALIDATION FAILED:", e.detail)
-            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response(e.detail, status=400)
         serializer.save(patient=self.request.user)
-        print("✅ LAB BOOKING CREATED:", serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=201)
+# appointments/views.py
+
