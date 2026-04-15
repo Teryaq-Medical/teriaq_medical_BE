@@ -115,7 +115,7 @@ def login_view(request):
         value=token.key,
         httponly=True,
         secure=True,
-        samesite="Lax", 
+        samesite="None", 
         path="/",
     )
 
