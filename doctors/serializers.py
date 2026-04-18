@@ -27,10 +27,6 @@ class DoctorSerializers(serializers.ModelSerializer):
         ]
 
     def to_representation(self, instance):
-        """
-        Convert the stored public ID (or Cloudinary resource) into a full image URL.
-        This ensures the frontend receives a usable URL while the model stores only the public ID.
-        """
         data = super().to_representation(instance)
         if instance.profile_image:
             # If it's a Cloudinary resource object, get its URL
