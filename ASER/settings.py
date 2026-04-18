@@ -146,6 +146,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "https://teriaq-medical-fe.vercel.app",
+    "https://teriaq-medical-fe.onrender.com",
     "https://teriaq-dashboard.onrender.com"# أو رابط الفرونت الحقيقي
 ]
 
@@ -153,6 +154,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "https://teriaq-medical-fe.vercel.app",
+    "https://teriaq-medical-fe.onrender.com",
     "https://teriaq-dashboard.onrender.com",
     "https://teriaq-medical-be.onrender.com"
 ]
