@@ -28,6 +28,7 @@ class Doctor(models.Model):
     
     insurance = models.ManyToManyField(Insurance, blank=True)
     certificates = models.ManyToManyField(Certifications, blank=True)
+    about = models.ForeignKey(Biography,on_delete=models.CASCADE,blank=True,null=True)
 
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)

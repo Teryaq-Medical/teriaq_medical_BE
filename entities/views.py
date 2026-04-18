@@ -31,6 +31,7 @@ class EntityUpdateView(APIView):
             "clincs": "clincs.Clinic",
             "labs": "labs.Lab",
             "doctors": "doctors.Doctor",
+            "un-doctors": "doctors.UnregisteredDoctor"
         }
         model_path = mapping.get(entity_type.lower())
         if not model_path:
@@ -97,7 +98,7 @@ class EntityUpdateView(APIView):
             except Exception as e:
                 return Response({"error": f"Image upload failed: {str(e)}"}, status=400)
 
-        # Handle profile_image for doctors
+        # Handle profile_image for doctors/un-doctors
         if 'profile_image' in data:
             try:
                 uploaded_url = self.upload_base64_image(data['profile_image'])
@@ -106,7 +107,17 @@ class EntityUpdateView(APIView):
             except Exception as e:
                 return Response({"error": f"Profile image upload failed: {str(e)}"}, status=400)
 
-        # Use serializer for update (now image is a URL)
+        # Map common field names to doctor/un-doctor specific field names
+        if entity_type in ["doctors", "un-doctors"]:
+            if 'name' in data:
+                data['full_name'] = data.pop('name')
+            if 'phone' in data:
+                data['phone_number'] = data.pop('phone')
+            # 'address' and 'email' are the same, no mapping needed
+            # 'description' is not a field on Doctor/UnregisteredDoctor model – remove it
+            data.pop('description', None)
+
+    # Use serializer for update
         serializer_class = self.get_serializer_class(entity_type)
         serializer = serializer_class(entity, data=data, partial=True)
         if serializer.is_valid():
@@ -118,12 +129,14 @@ class EntityUpdateView(APIView):
         from hospitals.serializers import HospitalSerializers
         from clincs.serializers import ClincsSerializer
         from labs.serializers import LabsSerializers
-        from doctors.serializers import DoctorSerializers
+        from doctors.serializers import DoctorSerializers,UnregisteredDoctorSerializer
         mapping = {
             "hospitals": HospitalSerializers,
             "clincs": ClincsSerializer,
             "labs": LabsSerializers,
             "doctors": DoctorSerializers,
+            "un-doctors": UnregisteredDoctorSerializer,
+
         }
         return mapping.get(entity_type)
 # ==================== ENTITY ABOUT UPDATE (FIXED) ====================

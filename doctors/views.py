@@ -11,7 +11,8 @@ from ASER.viewset import TeriaqViewSets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .serializers import WorkScheduleSerializer
-class DoctorAssignmentViewSet(TeriaqViewSets):
+from rest_framework import viewsets
+class DoctorAssignmentViewSet(viewsets.ModelViewSet):
     queryset = DoctorAssignment.objects.all()
     serializer_class = DoctorAssignmentSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -20,37 +21,64 @@ class DoctorAssignmentViewSet(TeriaqViewSets):
         user = self.request.user
         doctor_id = self.request.query_params.get('doctor_id')
         
-        # Base queryset (status approved)
-        qs = super().get_queryset().filter(status="approved")
+        # Start with approved assignments
+        qs = DoctorAssignment.objects.filter(status="approved")
         
-        # If doctor_id is provided, filter by that doctor
+        # If user is admin → return everything (including pending)
+        if user.is_staff or user.is_superuser:
+            qs = DoctorAssignment.objects.all()
+        else:
+            # Check if user is an entity owner (hospital, clinic, lab)
+            entity_type = user.user_type
+            if entity_type in ["hospitals", "clincs", "labs"]:
+                # Get the user's entity
+                if entity_type == "hospitals":
+                    from hospitals.models import Hospital
+                    entity = Hospital.objects.get(user=user)
+                elif entity_type == "clincs":
+                    from clincs.models import Clinic
+                    entity = Clinic.objects.get(user=user)
+                elif entity_type == "labs":
+                    from labs.models import Lab
+                    entity = Lab.objects.get(user=user)
+                else:
+                    entity = None
+                
+                if entity:
+                    content_type = ContentType.objects.get_for_model(entity)
+                    # Include both approved AND pending for this entity
+                    qs = DoctorAssignment.objects.filter(
+                        content_type=content_type,
+                        object_id=entity.id
+                    )
+        
+        # Apply doctor_id filter (if provided)
         if doctor_id:
-            # Check permission: only admin or the doctor themselves can view
             if not (user.is_staff or user.is_superuser):
+                # Non‑admin can only see their own doctor profile
                 try:
                     doctor = Doctor.objects.get(user=user)
                     if int(doctor_id) != doctor.id:
-                        return DoctorAssignment.objects.none()  # Return empty
+                        return DoctorAssignment.objects.none()
                 except Doctor.DoesNotExist:
                     return DoctorAssignment.objects.none()
             qs = qs.filter(doctor_id=doctor_id)
         
-        # Optional filters for entity type
+        # Apply entity filters (hospital_id, clinic_id, lab_id)
         h_id = self.request.query_params.get('hospital_id')
         c_id = self.request.query_params.get('clinic_id')
         l_id = self.request.query_params.get('lab_id')
         
         if h_id:
             ct = ContentType.objects.get_for_model(Hospital)
-            return qs.filter(content_type=ct, object_id=h_id)
+            qs = qs.filter(content_type=ct, object_id=h_id)
         if c_id:
             ct = ContentType.objects.get_for_model(Clinic)
-            return qs.filter(content_type=ct, object_id=c_id)
+            qs = qs.filter(content_type=ct, object_id=c_id)
         if l_id:
             ct = ContentType.objects.get_for_model(Lab)
-            return qs.filter(content_type=ct, object_id=l_id)
+            qs = qs.filter(content_type=ct, object_id=l_id)
         
-        # If no entity filter, return filtered by doctor (or all for admin)
         return qs
 
     @action(detail=False, methods=['get'], url_path='schedules')
@@ -61,7 +89,7 @@ class DoctorAssignmentViewSet(TeriaqViewSets):
 
         user = request.user
         
-        # Permission check
+        # Permission check: only admin or the doctor themselves can view
         if not (user.is_staff or user.is_superuser):
             try:
                 doctor = Doctor.objects.get(user=user)

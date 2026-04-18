@@ -11,18 +11,19 @@ from specialists.serializers import SpecialistSerializer
 from rest_framework import serializers
 from .models import Doctor, DoctorAssignment
 from specialists.serializers import SpecialistSerializer
-from ASER.serializers import InsuranceSerializer, CertificationsSerializer
+from ASER.serializers import InsuranceSerializer, CertificationsSerializer,BiographySerializer
 
 class DoctorSerializers(serializers.ModelSerializer):
     specialist = SpecialistSerializer(read_only=True)
     insurance = InsuranceSerializer(many=True, read_only=True)
     certificates = CertificationsSerializer(many=True, read_only=True)
+    about = BiographySerializer()
 
     class Meta:
         model = Doctor
         fields = [
-            'id', 'full_name', 'phone_number', 'address', 'profile_image',
-            'specialist', 'is_verified', 'insurance', 'certificates'
+            'id', 'full_name', 'phone_number', 'address', 'profile_image','license_document',
+            'specialist', 'is_verified', 'insurance', 'certificates','about','license_number'
         ]
 
     def to_representation(self, instance):
@@ -56,8 +57,8 @@ class UnregisteredDoctorSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = UnregisteredDoctor
-        fields = ['id', 'full_name', 'phone_number', 'address', 'profile_image', 'specialist', 'is_verified', 'allow_online_booking', 'insurance', 'certificates']
-        read_only_fields = ['allow_online_booking']
+        fields = ['id', 'full_name', 'phone_number', 'address', 'profile_image','license_document', 'specialist', 'is_verified', 'allow_online_booking', 'insurance', 'certificates','license_number','allow_online_booking','is_verified']
+        read_only_fields = []
     
     def get_profile_image(self, obj):
         if obj.profile_image:
