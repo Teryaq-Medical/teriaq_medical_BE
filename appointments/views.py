@@ -1,6 +1,6 @@
 import logging
 from django.db import transaction, IntegrityError
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Appointment, LabBooking
@@ -147,11 +147,11 @@ class LabBookingViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         print("🔥 LAB BOOKING PAYLOAD:", request.data)
         serializer = self.get_serializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except serializers.ValidationError as e:
-            return Response(e.detail, status=400)
-        serializer.save(patient=self.request.user)
+        if not serializer.is_valid():
+            print("❌ VALIDATION ERRORS:", serializer.errors)  # Debug line
+            return Response(serializer.errors, status=400)
+        self.perform_create(serializer)
         return Response(serializer.data, status=201)
-# appointments/views.py
 
+    def perform_create(self, serializer):
+        serializer.save(patient=self.request.user)

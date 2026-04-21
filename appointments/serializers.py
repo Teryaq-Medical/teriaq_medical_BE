@@ -26,7 +26,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
         # ... (keep your existing validate logic)
         return data
 
-
 class LabBookingSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
 
@@ -34,6 +33,9 @@ class LabBookingSerializer(serializers.ModelSerializer):
         model = LabBooking
         fields = ["id", "patient", "patient_name", "lab", "service_name", "booking_code", "status", "created_at"]
         read_only_fields = ["id", "booking_code", "status", "created_at", "patient_name"]
+        extra_kwargs = {
+            'patient': {'required': False, 'allow_null': True}
+        }
 
     def get_patient_name(self, obj):
         return obj.patient.full_name if obj.patient else "Unknown"
