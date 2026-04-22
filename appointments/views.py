@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Appointment, LabBooking
 from .serializers import AppointmentSerializer, LabBookingSerializer
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
