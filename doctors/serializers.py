@@ -79,20 +79,38 @@ class DoctorSerializers(serializers.ModelSerializer):
         return data
 
 class UnregisteredDoctorSerializer(serializers.ModelSerializer):
-    specialist = SpecialistSerializer()
+    specialist = SpecialistSerializer(read_only=True)
     profile_image = serializers.SerializerMethodField()
-    
+    license_document = serializers.SerializerMethodField()  # ✅ changed
+
     class Meta:
         model = UnregisteredDoctor
-        fields = ['id', 'full_name', 'phone_number', 'address', 'profile_image','license_document', 'specialist', 'is_verified', 'allow_online_booking', 'insurance', 'certificates','license_number','allow_online_booking','is_verified']
-        read_only_fields = []
-    
+        fields = [
+            'id', 'full_name', 'phone_number', 'address', 'profile_image',
+            'license_document', 'specialist', 'is_verified', 'allow_online_booking',
+            'insurance', 'certificates', 'license_number'
+        ]
+        read_only_fields = ['allow_online_booking']
+
     def get_profile_image(self, obj):
         if obj.profile_image:
-            return obj.profile_image.url if hasattr(obj.profile_image, 'url') else obj.profile_image
+            return obj.profile_image.url if hasattr(obj.profile_image, 'url') else str(obj.profile_image)
         return None
 
-
+    def get_license_document(self, obj):
+        if not obj.license_document:
+            return None
+        if hasattr(obj.license_document, 'url'):
+            return obj.license_document.url
+        raw = str(obj.license_document)
+        # Fix malformed "image/upload/http://..." strings
+        if raw.startswith('image/upload/http'):
+            parts = raw.split('image/upload/')
+            if len(parts) > 1:
+                return parts[1]
+        if raw.startswith('http'):
+            return raw
+        return f"https://res.cloudinary.com/drswiflul/image/upload/{raw}"
 class WorkScheduleSerializer(serializers.ModelSerializer):
     assignment_id = serializers.PrimaryKeyRelatedField(
         source='assignment', 

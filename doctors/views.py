@@ -26,19 +26,16 @@ from rest_framework.permissions import IsAuthenticated
 class DoctorAssignmentViewSet(viewsets.ModelViewSet):
     queryset = DoctorAssignment.objects.all()
     serializer_class = DoctorAssignmentSerializer
-    permission_classes = [IsAuthenticated]  # ✅ Change to IsAuthenticated
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
         doctor_id = self.request.query_params.get('doctor_id')
 
-        # Base queryset
         if user.is_staff or user.is_superuser:
             qs = DoctorAssignment.objects.all()
         else:
             qs = DoctorAssignment.objects.filter(status="approved")
-
-            # If user is an entity owner, also include pending for their own entity
             entity_type = user.user_type
             if entity_type in ["hospitals", "clincs", "labs"]:
                 if entity_type == "hospitals":
@@ -49,19 +46,18 @@ class DoctorAssignmentViewSet(viewsets.ModelViewSet):
                     entity = Lab.objects.get(user=user)
                 else:
                     entity = None
-
                 if entity:
                     content_type = ContentType.objects.get_for_model(entity)
+                    # Include all assignments (pending/approved) for own entity
                     qs = DoctorAssignment.objects.filter(
                         content_type=content_type,
                         object_id=entity.id
                     )
 
-        # Filter by doctor_id – public for all authenticated users
         if doctor_id:
             qs = qs.filter(doctor_id=doctor_id)
 
-        # Entity filters
+        # Entity filters (hospital_id, clinic_id, lab_id)
         h_id = self.request.query_params.get('hospital_id')
         c_id = self.request.query_params.get('clinic_id')
         l_id = self.request.query_params.get('lab_id')

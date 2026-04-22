@@ -65,7 +65,8 @@ class WorkScheduleSerializer(serializers.ModelSerializer):
 class DoctorAssignmentSerializer(serializers.ModelSerializer):
     schedules = WorkScheduleSerializer(many=True, read_only=True)
     doctor = DoctorSerializers(read_only=True)
-    unregistered_doctor = UnregisteredDoctorSerializer(read_only=True)  # ✅ ADD THIS
+    unregistered_doctor = UnregisteredDoctorSerializer(read_only=True)
+    appointment_stats = serializers.SerializerMethodField()  # ✅ NEW
 
     class Meta:
         model = DoctorAssignment
@@ -73,10 +74,27 @@ class DoctorAssignmentSerializer(serializers.ModelSerializer):
             "id",
             "status",
             "doctor",
-            "unregistered_doctor",  # ✅ ADD THIS
+            "unregistered_doctor",
             "schedules",
+            "appointment_stats",  
             "created_at"
         ]
+
+    def get_appointment_stats(self, obj):
+        from appointments.models import Appointment
+        from appointments.serializers import AppointmentSerializer
+        from django.db.models import Count, Q
+
+        appointment_qs = Appointment.objects.filter(assignment=obj).select_related('patient', 'schedule')
+        stats = appointment_qs.aggregate(
+            total=Count("id"),
+            confirmed=Count("id", filter=Q(status="confirmed")),
+            cancelled=Count("id", filter=Q(status="cancelled")),
+            completed=Count("id", filter=Q(status="completed")),
+            no_show=Count("id", filter=Q(status="no_show")),
+        )
+        stats['bookings'] = AppointmentSerializer(appointment_qs.order_by('-appointment_date', '-appointment_time'), many=True).data
+        return stats
 
 
 class EntitySerializer(serializers.ModelSerializer):
