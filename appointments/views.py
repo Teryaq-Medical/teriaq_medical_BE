@@ -15,21 +15,20 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        print(user.user_type)
         
-        # If user is staff/admin, see all appointments
         if user.is_staff:
             return Appointment.objects.all().select_related('patient', 'assignment').order_by("-created_at")
         
-        # If user is a patient (normal user), see their own appointments
         if user.user_type == "normal":
             return Appointment.objects.filter(patient=user).select_related('patient', 'assignment').order_by("-created_at")
         
-        # If user is an entity owner (hospital, clinic, doctor, lab)
+        # For entity owners (hospitals, clinics, doctors, labs)
         if user.user_type in ["hospitals", "clincs", "doctors", "labs"]:
             from django.contrib.contenttypes.models import ContentType
             from doctors.models import DoctorAssignment
             
-            # Get the entity model based on user_type
+            # Get the entity based on user_type
             if user.user_type == "hospitals":
                 from hospitals.models import Hospital
                 entity = Hospital.objects.get(user=user)
@@ -45,11 +44,22 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             else:
                 return Appointment.objects.none()
             
-            content_type = ContentType.objects.get_for_model(entity)
-            assignments = DoctorAssignment.objects.filter(
-                content_type=content_type,
-                object_id=entity.id
-            )
+            # Build queryset of assignments
+            if user.user_type == "doctors":
+                # For doctors: include both personal assignments (doctor=entity) 
+                # and entity-linked assignments (via content_type)
+                assignments = DoctorAssignment.objects.filter(
+                    Q(doctor=entity) | 
+                    Q(content_type=ContentType.objects.get_for_model(entity), object_id=entity.id)
+                )
+            else:
+                # For hospitals/clinics/labs: only entity-linked assignments
+                content_type = ContentType.objects.get_for_model(entity)
+                assignments = DoctorAssignment.objects.filter(
+                    content_type=content_type,
+                    object_id=entity.id
+                )
+            
             return Appointment.objects.filter(assignment__in=assignments).select_related('patient', 'assignment').order_by("-created_at")
         
         return Appointment.objects.none()

@@ -17,35 +17,66 @@ class DoctorSerializers(serializers.ModelSerializer):
     specialist = SpecialistSerializer(read_only=True)
     insurance = InsuranceSerializer(many=True, read_only=True)
     certificates = CertificationsSerializer(many=True, read_only=True)
-    about = BiographySerializer()
+    about = BiographySerializer(read_only=True)
+    
+    # --- ADDED FIELDS ---
+    appointment_stats = serializers.SerializerMethodField()
+    # --------------------
 
     class Meta:
         model = Doctor
         fields = [
-            'id', 'full_name', 'phone_number', 'address', 'profile_image','license_document',
-            'specialist', 'is_verified', 'insurance', 'certificates','about','license_number'
+            'id', 'full_name', 'phone_number', 'address', 'profile_image', 
+            'license_document', 'specialist', 'is_verified', 'insurance', 
+            'certificates', 'about', 'license_number', 
+            'appointment_stats' # <--- MUST BE IN FIELDS
         ]
+
+    def get_appointment_stats(self, obj):
+        """
+        Calculates stats for all appointments belonging to this doctor.
+        """
+        from appointments.models import Appointment
+        from dashboard.serializers import AppointmentStatsSerializer
+        from django.db.models import Count, Q
+
+        # Filter appointments where the assignment belongs to this specific doctor
+        appointment_qs = Appointment.objects.filter(
+            assignment__doctor=obj
+        ).select_related('patient', 'assignment', 'schedule')
+
+        stats = appointment_qs.aggregate(
+            total=Count("id"),
+            confirmed=Count("id", filter=Q(status="confirmed")),
+            cancelled=Count("id", filter=Q(status="cancelled")),
+            completed=Count("id", filter=Q(status="completed")),
+            no_show=Count("id", filter=Q(status="no_show")),
+            pending=Count("id", filter=Q(status="pending")), # Your DB showed 'pending'
+        )
+        
+        # Add the list of bookings to the stats dictionary
+        stats['bookings'] = appointment_qs.order_by('-appointment_date', '-appointment_time')
+        
+        return AppointmentStatsSerializer(stats).data
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        
+        # Keep your existing Cloudinary URL logic
         if instance.profile_image:
-            # If it's a Cloudinary resource object, get its URL
             if hasattr(instance.profile_image, 'url'):
                 data['profile_image'] = instance.profile_image.url
-            # If it's a string (public ID or full URL)
             elif isinstance(instance.profile_image, str):
                 if instance.profile_image.startswith('http'):
                     data['profile_image'] = instance.profile_image
                 else:
-                    # Build the full Cloudinary URL from the public ID
                     from django.conf import settings
                     cloud_name = getattr(settings, 'CLOUDINARY_CLOUD_NAME', 'drswiflul')
                     data['profile_image'] = f"https://res.cloudinary.com/{cloud_name}/image/upload/{instance.profile_image}"
         else:
             data['profile_image'] = None
+            
         return data
-
-    # Remove get_assignments method
 
 class UnregisteredDoctorSerializer(serializers.ModelSerializer):
     specialist = SpecialistSerializer()

@@ -92,26 +92,34 @@ class EntitySerializer(serializers.ModelSerializer):
         model = None
         fields = "__all__"
 
-
     def get_image_url(self, obj):
-        if obj.image:
+        if hasattr(obj, 'image') and obj.image:
             return obj.image.url if hasattr(obj.image, 'url') else str(obj.image)
         return None
-    
+
     def get_assignments(self, obj):
-        content_type = ContentType.objects.get_for_model(obj)
-        assignments = DoctorAssignment.objects.filter(
-            content_type=content_type,
-            object_id=obj.id
-        ).prefetch_related("schedules")
+        # If the entity is a Doctor, use doctor_id directly (personal + entity assignments)
+        if isinstance(obj, Doctor):
+            assignments = DoctorAssignment.objects.filter(
+                doctor=obj
+            ).prefetch_related("schedules")
+        else:
+            content_type = ContentType.objects.get_for_model(obj)
+            assignments = DoctorAssignment.objects.filter(
+                content_type=content_type,
+                object_id=obj.id
+            ).prefetch_related("schedules")
         return DoctorAssignmentSerializer(assignments, many=True).data
-    
+
     def get_appointment_stats(self, obj):
-        content_type = ContentType.objects.get_for_model(obj)
-        assignments = DoctorAssignment.objects.filter(
-            content_type=content_type,
-            object_id=obj.id
-        )
+        if isinstance(obj, Doctor):
+            assignments = DoctorAssignment.objects.filter(doctor=obj)
+        else:
+            content_type = ContentType.objects.get_for_model(obj)
+            assignments = DoctorAssignment.objects.filter(
+                content_type=content_type,
+                object_id=obj.id
+            )
         appointment_qs = Appointment.objects.filter(
             assignment__in=assignments
         ).select_related('patient', 'assignment', 'schedule')

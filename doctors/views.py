@@ -1,7 +1,9 @@
+import logging
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.contenttypes.models import ContentType
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Doctor, WorkSchedule, DoctorAssignment, UnregisteredDoctor
 from hospitals.models import Hospital
@@ -16,11 +18,15 @@ from .serializers import (
 from ASER.permissions import IsAdminOrReadOnly
 from ASER.viewset import TeriaqViewSets
 
+logger = logging.getLogger(__name__)
+
+
+from rest_framework.permissions import IsAuthenticated
 
 class DoctorAssignmentViewSet(viewsets.ModelViewSet):
     queryset = DoctorAssignment.objects.all()
     serializer_class = DoctorAssignmentSerializer
-    permission_classes = [IsAdminOrReadOnly]
+    permission_classes = [IsAuthenticated]  # ✅ Change to IsAuthenticated
 
     def get_queryset(self):
         user = self.request.user
@@ -30,13 +36,11 @@ class DoctorAssignmentViewSet(viewsets.ModelViewSet):
         if user.is_staff or user.is_superuser:
             qs = DoctorAssignment.objects.all()
         else:
-            # Start with approved assignments (publicly visible)
             qs = DoctorAssignment.objects.filter(status="approved")
 
-            # If user is an entity owner, also include pending assignments for their entity
+            # If user is an entity owner, also include pending for their own entity
             entity_type = user.user_type
             if entity_type in ["hospitals", "clincs", "labs"]:
-                # Get the user's entity (using top-level imports)
                 if entity_type == "hospitals":
                     entity = Hospital.objects.get(user=user)
                 elif entity_type == "clincs":
@@ -48,28 +52,19 @@ class DoctorAssignmentViewSet(viewsets.ModelViewSet):
 
                 if entity:
                     content_type = ContentType.objects.get_for_model(entity)
-                    # Merge approved and pending assignments for this entity
                     qs = DoctorAssignment.objects.filter(
                         content_type=content_type,
                         object_id=entity.id
                     )
 
-        # Apply doctor_id filter
+        # Filter by doctor_id – public for all authenticated users
         if doctor_id:
-            if not (user.is_staff or user.is_superuser):
-                try:
-                    doctor = Doctor.objects.get(user=user)
-                    if int(doctor_id) != doctor.id:
-                        return DoctorAssignment.objects.none()
-                except Doctor.DoesNotExist:
-                    return DoctorAssignment.objects.none()
             qs = qs.filter(doctor_id=doctor_id)
 
-        # Apply entity filters (hospital_id, clinic_id, lab_id)
+        # Entity filters
         h_id = self.request.query_params.get('hospital_id')
         c_id = self.request.query_params.get('clinic_id')
         l_id = self.request.query_params.get('lab_id')
-
         if h_id:
             ct = ContentType.objects.get_for_model(Hospital)
             qs = qs.filter(content_type=ct, object_id=h_id)
@@ -88,31 +83,8 @@ class DoctorAssignmentViewSet(viewsets.ModelViewSet):
         if not doctor_id:
             return Response({"error": "doctor_id is required"}, status=400)
 
-        user = request.user
-
-        # Permission check: only admin or the doctor themselves can view
-        if not (user.is_staff or user.is_superuser):
-            try:
-                doctor = Doctor.objects.get(user=user)
-                if int(doctor_id) != doctor.id:
-                    return Response({"error": "Permission denied"}, status=403)
-            except Doctor.DoesNotExist:
-                return Response({"error": "Doctor not found"}, status=404)
-
-        # Personal (global) assignments
-        personal_assignments = DoctorAssignment.objects.filter(
-            doctor_id=doctor_id,
-            content_type__isnull=True,
-            object_id__isnull=True,
-            status="approved"
-        )
-        # Entity assignments
-        entity_assignments = DoctorAssignment.objects.filter(
-            doctor_id=doctor_id,
-            content_type__isnull=False,
-            status="approved"
-        )
-        assignments = personal_assignments | entity_assignments
+        # Any authenticated user can see approved schedules
+        assignments = DoctorAssignment.objects.filter(doctor_id=doctor_id, status="approved")
         schedules = WorkSchedule.objects.filter(assignment__in=assignments).select_related('assignment')
         serializer = WorkScheduleSerializer(schedules, many=True)
         return Response(serializer.data)
@@ -125,12 +97,23 @@ class WorkScheduleViewSet(TeriaqViewSets):
     def get_queryset(self):
         queryset = super().get_queryset()
         assignment_id = self.request.query_params.get('assignment')
+        doctor_id = self.request.query_params.get('doctor_id')
+
+        # Priority 1: Filter by specific Assignment ID
         if assignment_id:
             return queryset.filter(assignment_id=assignment_id)
+        
+        # Priority 2: Filter by Doctor ID (Look for their 'individual' assignment)
+        if doctor_id:
+            return queryset.filter(
+                assignment__doctor_id=doctor_id, 
+                assignment__entity_type="individual"
+            )
+            
         return queryset
 
     def perform_create(self, serializer):
-        # Optionally strip seconds from times before saving
+        # ... (keep your existing time stripping logic)
         start_time = serializer.validated_data.get('start_time')
         end_time = serializer.validated_data.get('end_time')
         if start_time:
