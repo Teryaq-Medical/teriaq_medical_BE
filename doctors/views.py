@@ -2,8 +2,8 @@ import logging
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.contrib.contenttypes.models import ContentType
-from rest_framework.permissions import IsAuthenticated
 
 from .models import Doctor, WorkSchedule, DoctorAssignment, UnregisteredDoctor
 from hospitals.models import Hospital
@@ -14,6 +14,7 @@ from .serializers import (
     WorkScheduleSerializer,
     DoctorAssignmentSerializer,
     UnregisteredDoctorSerializer,
+    DoctorAssignmentStatusUpdateSerializer,   # NEW
 )
 from ASER.permissions import IsAdminOrReadOnly
 from ASER.viewset import TeriaqViewSets
@@ -21,12 +22,18 @@ from ASER.viewset import TeriaqViewSets
 logger = logging.getLogger(__name__)
 
 
-from rest_framework.permissions import IsAuthenticated
-
 class DoctorAssignmentViewSet(viewsets.ModelViewSet):
     queryset = DoctorAssignment.objects.all()
     serializer_class = DoctorAssignmentSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        """
+        Ensure only admins can perform update/delete actions on assignments.
+        """
+        if self.action in ['update', 'partial_update', 'destroy', 'update_status']:
+            self.permission_classes = [IsAdminUser]
+        return super().get_permissions()
 
     def get_queryset(self):
         user = self.request.user
@@ -48,7 +55,6 @@ class DoctorAssignmentViewSet(viewsets.ModelViewSet):
                     entity = None
                 if entity:
                     content_type = ContentType.objects.get_for_model(entity)
-                    # Include all assignments (pending/approved) for own entity
                     qs = DoctorAssignment.objects.filter(
                         content_type=content_type,
                         object_id=entity.id
@@ -57,7 +63,6 @@ class DoctorAssignmentViewSet(viewsets.ModelViewSet):
         if doctor_id:
             qs = qs.filter(doctor_id=doctor_id)
 
-        # Entity filters (hospital_id, clinic_id, lab_id)
         h_id = self.request.query_params.get('hospital_id')
         c_id = self.request.query_params.get('clinic_id')
         l_id = self.request.query_params.get('lab_id')
@@ -79,10 +84,39 @@ class DoctorAssignmentViewSet(viewsets.ModelViewSet):
         if not doctor_id:
             return Response({"error": "doctor_id is required"}, status=400)
 
-        # Any authenticated user can see approved schedules
         assignments = DoctorAssignment.objects.filter(doctor_id=doctor_id, status="approved")
         schedules = WorkSchedule.objects.filter(assignment__in=assignments).select_related('assignment')
         serializer = WorkScheduleSerializer(schedules, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['patch'], url_path='update-status')
+    def update_status(self, request):
+        """
+        Endpoint to update the status of a specific DoctorAssignment.
+        Expected payload:
+        {
+            "assignment_id": 123,
+            "status": "approved"  # or "pending", "rejected", "inactive"
+        }
+        """
+        assignment_id = request.data.get('assignment_id')
+        new_status = request.data.get('status')
+
+        if not assignment_id:
+            return Response({"error": "assignment_id is required"}, status=400)
+        if new_status not in dict(DoctorAssignment.STATUS_CHOICES):
+            return Response({"error": f"Invalid status. Choices: {list(dict(DoctorAssignment.STATUS_CHOICES).keys())}"}, status=400)
+
+        try:
+            assignment = DoctorAssignment.objects.get(id=assignment_id)
+        except DoctorAssignment.DoesNotExist:
+            return Response({"error": "Assignment not found"}, status=404)
+
+        assignment.status = new_status
+        assignment.save()
+
+        # Return the updated assignment data
+        serializer = DoctorAssignmentSerializer(assignment)
         return Response(serializer.data)
 
 
@@ -95,21 +129,16 @@ class WorkScheduleViewSet(TeriaqViewSets):
         assignment_id = self.request.query_params.get('assignment')
         doctor_id = self.request.query_params.get('doctor_id')
 
-        # Priority 1: Filter by specific Assignment ID
         if assignment_id:
             return queryset.filter(assignment_id=assignment_id)
-        
-        # Priority 2: Filter by Doctor ID (Look for their 'individual' assignment)
         if doctor_id:
             return queryset.filter(
-                assignment__doctor_id=doctor_id, 
+                assignment__doctor_id=doctor_id,
                 assignment__entity_type="individual"
             )
-            
         return queryset
 
     def perform_create(self, serializer):
-        # ... (keep your existing time stripping logic)
         start_time = serializer.validated_data.get('start_time')
         end_time = serializer.validated_data.get('end_time')
         if start_time:
@@ -126,6 +155,48 @@ class DoctorsViewSet(TeriaqViewSets):
 
 
 class UnregisteredDoctorsViewSet(TeriaqViewSets):
-    queryset = UnregisteredDoctor.objects.all()
+    queryset = UnregisteredDoctor.objects.prefetch_related(
+        'assignments__content_type'
+    ).all()
     serializer_class = UnregisteredDoctorSerializer
-    permission_classes = [IsAdminOrReadOnly]
+
+    def get_permissions(self):
+        # Anyone authenticated can read
+        # Admin can write
+        # Entity owner can write if they have an approved assignment for this doctor
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            # Use custom permission class or logic inside the view
+            self.permission_classes = [IsAuthenticated]
+        else:
+            self.permission_classes = [IsAuthenticated]
+        return super().get_permissions()
+
+    def check_object_permissions(self, request, obj):
+        super().check_object_permissions(request, obj)
+        if request.method in SAFE_METHODS:
+            return
+        # Allow admin
+        if request.user.is_staff or request.user.is_superuser:
+            return
+        # Allow entity owner if they have an approved assignment for this doctor
+        if hasattr(request.user, 'user_type') and request.user.user_type in ['hospitals', 'clincs', 'labs']:
+            # Get the entity
+            if request.user.user_type == 'hospitals':
+                entity = Hospital.objects.filter(user=request.user).first()
+            elif request.user.user_type == 'clincs':
+                entity = Clinic.objects.filter(user=request.user).first()
+            elif request.user.user_type == 'labs':
+                entity = Lab.objects.filter(user=request.user).first()
+            else:
+                entity = None
+            if entity:
+                content_type = ContentType.objects.get_for_model(entity)
+                # Check if there is an approved assignment linking this entity and the unregistered doctor
+                if DoctorAssignment.objects.filter(
+                    content_type=content_type,
+                    object_id=entity.id,
+                    unregistered_doctor=obj,
+                    status='approved'
+                ).exists():
+                    return  # allowed
+        self.permission_denied(request)

@@ -129,6 +129,12 @@ class DoctorAssignment(models.Model):
                 name="only_one_doctor_source"
             )
         ]
+    
+    @property
+    def entity_name(self):
+        if self.entity:
+            return getattr(self.entity, 'name', str(self.entity))
+        return "Individual"
 
     def __str__(self):
         doctor_name = self.doctor or self.unregistered_doctor

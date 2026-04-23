@@ -82,15 +82,26 @@ class UnregisteredDoctorSerializer(serializers.ModelSerializer):
     specialist = SpecialistSerializer(read_only=True)
     profile_image = serializers.SerializerMethodField()
     license_document = serializers.SerializerMethodField()  # ✅ changed
-
+    assignments = serializers.SerializerMethodField()
     class Meta:
         model = UnregisteredDoctor
         fields = [
             'id', 'full_name', 'phone_number', 'address', 'profile_image',
             'license_document', 'specialist', 'is_verified', 'allow_online_booking',
-            'insurance', 'certificates', 'license_number'
+            'insurance', 'certificates', 'license_number','assignments'
         ]
         read_only_fields = ['allow_online_booking']
+        
+    
+    def get_assignments(self, obj):
+        assignments = obj.assignments.all().select_related('content_type')
+        return [{
+            'id': a.id,
+            'entity_type': a.content_type.model if a.content_type else 'individual',
+            'entity_id': a.object_id,
+            'entity_name': a.entity_name,
+            'status': a.status,
+        } for a in assignments]
 
     def get_profile_image(self, obj):
         if obj.profile_image:
@@ -112,14 +123,13 @@ class UnregisteredDoctorSerializer(serializers.ModelSerializer):
             return raw
         return f"https://res.cloudinary.com/drswiflul/image/upload/{raw}"
 class WorkScheduleSerializer(serializers.ModelSerializer):
-    assignment_id = serializers.PrimaryKeyRelatedField(
-        source='assignment', 
-        read_only=True
-    )
+    assignment = serializers.PrimaryKeyRelatedField(queryset=DoctorAssignment.objects.all(), required=True)
+    assignment_id = serializers.PrimaryKeyRelatedField(source='assignment', read_only=True)
+    date = serializers.DateField(required=True) 
+
     class Meta:
         model = WorkSchedule
-        fields = ['id', 'day', 'start_time', 'end_time', 'assignment_id']
-    
+        fields = ['id', 'day', 'start_time', 'end_time', 'date', 'assignment', 'assignment_id']
 
 class DoctorAssignmentSerializer(serializers.ModelSerializer):
     schedules = WorkScheduleSerializer(many=True, read_only=True)
@@ -135,3 +145,13 @@ class DoctorAssignmentSerializer(serializers.ModelSerializer):
         if obj.content_type:
             return obj.content_type.model
         return "individual"
+
+class DoctorAssignmentStatusUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer used exclusively for updating the status of a DoctorAssignment.
+    Only the 'status' field is writable; the 'id' is read-only.
+    """
+    class Meta:
+        model = DoctorAssignment
+        fields = ['id', 'status']
+        read_only_fields = ['id']
