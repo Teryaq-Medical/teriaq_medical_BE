@@ -88,9 +88,8 @@ class UnregisteredDoctorSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'full_name', 'phone_number', 'address', 'profile_image',
             'license_document', 'specialist', 'is_verified', 'allow_online_booking',
-            'insurance', 'certificates', 'license_number','assignments'
+            'insurance', 'certificates', 'license_number','assignments','allow_online_booking'
         ]
-        read_only_fields = ['allow_online_booking']
         
     
     def get_assignments(self, obj):
