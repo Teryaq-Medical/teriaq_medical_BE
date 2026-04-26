@@ -161,11 +161,7 @@ class UnregisteredDoctorsViewSet(TeriaqViewSets):
     serializer_class = UnregisteredDoctorSerializer
 
     def get_permissions(self):
-        # Anyone authenticated can read
-        # Admin can write
-        # Entity owner can write if they have an approved assignment for this doctor
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            # Use custom permission class or logic inside the view
             self.permission_classes = [IsAuthenticated]
         else:
             self.permission_classes = [IsAuthenticated]
@@ -175,12 +171,9 @@ class UnregisteredDoctorsViewSet(TeriaqViewSets):
         super().check_object_permissions(request, obj)
         if request.method in SAFE_METHODS:
             return
-        # Allow admin
         if request.user.is_staff or request.user.is_superuser:
             return
-        # Allow entity owner if they have an approved assignment for this doctor
         if hasattr(request.user, 'user_type') and request.user.user_type in ['hospitals', 'clincs', 'labs']:
-            # Get the entity
             if request.user.user_type == 'hospitals':
                 entity = Hospital.objects.filter(user=request.user).first()
             elif request.user.user_type == 'clincs':
@@ -191,12 +184,22 @@ class UnregisteredDoctorsViewSet(TeriaqViewSets):
                 entity = None
             if entity:
                 content_type = ContentType.objects.get_for_model(entity)
-                # Check if there is an approved assignment linking this entity and the unregistered doctor
                 if DoctorAssignment.objects.filter(
                     content_type=content_type,
                     object_id=entity.id,
                     unregistered_doctor=obj,
                     status='approved'
                 ).exists():
-                    return  # allowed
+                    return
         self.permission_denied(request)
+
+    # 🔧 Override to guarantee allow_online_booking is saved
+    def perform_update(self, serializer):
+        # Log the request data
+        logger.info(f"PATCH data: {self.request.data}")
+        
+        # If allow_online_booking is in the request, force it
+        if 'allow_online_booking' in self.request.data:
+            serializer.save(allow_online_booking=self.request.data.get('allow_online_booking'))
+        else:
+            serializer.save()
