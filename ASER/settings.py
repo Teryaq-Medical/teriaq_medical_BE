@@ -21,6 +21,8 @@ SECRET_KEY = 'django-insecure-l1@llene&*armz141=d29_+c6k*2-l36#!wijnjyw*0*(341+q
 
 
 DEBUG = False
+AUTH_COOKIE_SECURE = not DEBUG   
+AUTH_COOKIE_SAMESITE = 'Lax' if not DEBUG else 'None'
 
 ALLOWED_HOSTS = [
     "127.0.0.1",

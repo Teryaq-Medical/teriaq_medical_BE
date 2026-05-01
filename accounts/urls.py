@@ -1,24 +1,41 @@
-from django.urls import path,include
-from .views import (
-    register_normal,
-    register_community,
-    login_view,
-    logout_view,
-    profile,
-    UsersViewsets
-)
-
+from django.urls import path, include
 from rest_framework import routers
+from .views import AuthViewSet, UsersViewsets
 
 router = routers.DefaultRouter()
-router.register(r'users', UsersViewsets,basename='users')
+router.register(r'users', UsersViewsets, basename='users')
 
+# Map AuthViewSet actions manually using as_view()
+auth_viewset = AuthViewSet
 
 urlpatterns = [
-    path("register/normal/", register_normal),
-    path("register/community/", register_community),
-    path("login/", login_view),
-    path("logout/", logout_view),
-    path("profile/", profile),
-    path("",include(router.urls))
+    # Auth endpoints (manual mapping)
+    path(
+        "register/normal/",
+        auth_viewset.as_view({'post': 'register_normal'}),
+        name="auth-register-normal",
+    ),
+    path(
+        "register/community/",
+        auth_viewset.as_view({'post': 'register_community'}),
+        name="auth-register-community",
+    ),
+    path(
+        "login/",
+        auth_viewset.as_view({'post': 'login'}),
+        name="auth-login",
+    ),
+    path(
+        "logout/",
+        auth_viewset.as_view({'post': 'logout'}),
+        name="auth-logout",
+    ),
+    path(
+        "profile/",
+        auth_viewset.as_view({'get': 'profile'}),
+        name="auth-profile",
+    ),
+
+    # User management (via router)
+    path("", include(router.urls)),
 ]

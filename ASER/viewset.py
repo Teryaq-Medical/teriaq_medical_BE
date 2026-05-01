@@ -50,3 +50,12 @@ class TeriaqViewSets(viewsets.ModelViewSet):
             'message': self.get_success_message('update'),
             'data': response.data
         }, status=status.HTTP_200_OK)
+        
+    def destroy(self, request, *args, **kwargs):
+        super().destroy(request, *args, **kwargs)
+        return Response({
+            'status': 'success',
+            'message': {'en': f'{self.basename} deleted successfully',
+                        'ar': f'تم حذف {self.basename} بنجاح'},
+            'data': None
+        }, status=status.HTTP_200_OK)
